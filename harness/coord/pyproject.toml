@@ -1,0 +1,43 @@
+[project]
+name = "harness-coord"
+version = "0.1.0"
+description = "Deterministic coordination tools (claims, worktrees, hashes, assertion scan) for the goose agent harness"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.9,<2",
+]
+
+[project.scripts]
+harness-coord-mcp = "harness_coord.server:main"
+harness-coord = "harness_coord.cli:main"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.390",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/harness_coord"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
