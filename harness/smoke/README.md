@@ -10,7 +10,8 @@ Runs the harness inside a real goose, against goose's built-in local provider
 | `run.sh` | installs the harness into the sandbox, builds the toy repo, runs `qa-check`, `start-day` and `bmad-story`, and writes a summary per recipe |
 | `make-toyrepo.sh DEST` | copies `fixtures/toyrepo` to `DEST/toyrepo`, `git init`s it, and pushes `main` to a bare `DEST/origin.git`, so claims, fetches and pushes work with no network |
 | `fixtures/toyrepo/` | a tiny `uv` Python package: `add()`, two pytest tests, and one story (`docs/stories/1.1-subtract.md`) |
-| `reqlog_watch.py` | keeps every goose per-request LLM log during a run (goose keeps only the last 10) and summarises tokens and timing |
+| `reqlog_watch.py` | keeps every goose per-request LLM log during a run (goose keeps only the last 10) and summarises tokens, timing and a prefill/decode fit |
+| `transcript.py` | renders a `stream-json` log as a readable transcript; `--tools` counts tool calls in an exported session |
 
 ## Prerequisites
 
@@ -46,6 +47,7 @@ SMOKE_ROOT=/path/to/sandbox \
 | `RECIPES` | `qa-check start-day bmad-story` | which recipes to run, in order |
 | `MAX_TURNS` | `40` | `goose run --max-turns` for each recipe |
 | `RUN_TIMEOUT` | `2700` | seconds before a recipe is killed |
+| `SUBAGENT_MAX_TURNS` | `30` | exported as `GOOSE_SUBAGENT_MAX_TURNS`. `--max-turns` does not reach delegates, which otherwise get 1000 turns (RESULTS.md, D3) |
 | `GOOSE_PROVIDER` | `local` | set it, plus an API key, to run the same smoke against a frontier model |
 
 Each run writes `$SMOKE_ROOT/runs/<stamp>/`:
@@ -53,8 +55,10 @@ Each run writes `$SMOKE_ROOT/runs/<stamp>/`:
 - `work/toyrepo`, `work/toyrepo.wt/`, `work/origin.git`: the repo the recipes worked on
 - `logs/<recipe>.stream.jsonl`: `goose run --output-format stream-json`
 - `logs/<recipe>.session.json`: the exported main session
+- `logs/<recipe>.subagent-<id>.session.json`: one per delegate; `goose session list` does not show these
+- `logs/bmad-story.retry-checks-manual.log`: the recipe's two `retry.checks`, re-run by hand after the recipe
 - `logs/<recipe>.requests.jsonl`: one line per model request (prompt and output tokens, start, end)
-- `logs/<recipe>.summary.txt`: exit code, wall clock, harness tools called, `git worktree list`, origin branches, model speed
+- `logs/<recipe>.summary.txt`: exit code, wall clock, tool calls per session, `git worktree list`, origin branches, model speed
 
 Logs and models stay in the sandbox. Nothing in it belongs in git.
 
@@ -71,6 +75,13 @@ Logs and models stay in the sandbox. Nothing in it belongs in git.
 goose's `--stats` reports real numbers only for the MLX backend. For llama.cpp
 it divides the last request's output tokens by the whole run's wall clock,
 which is meaningless for a multi-turn recipe. `reqlog_watch.py` uses goose's
-own request logs instead: each file's birth time is the request start, its
-mtime is the end, and the file carries `prompt_tokens`, `output_tokens` and
-`model_load_ms`. Its tokens/sec figure includes prefill.
+own request logs instead. Each file's birth time is the request start and
+its mtime is the end. The file carries `prompt_tokens`, `output_tokens` and
+`model_load_ms`.
+
+The "end to end" tokens/sec includes prefill. `fit_prefill_tok_per_s` and
+`fit_decode_tok_per_s` come from a least-squares fit of
+`time = prompt/prefill + output/decode` across the requests.
+
+The fixture's own `tests/` are not part of the harness test suites. Run
+pytest on `harness/<slice>` directories, not on `harness/` as a whole.
