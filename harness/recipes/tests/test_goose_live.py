@@ -270,8 +270,41 @@ def test_coord_gen_hash_through_goose(sandbox):
     default, long, bad = (r["result"] for r in results)
     assert default["isError"] is False and re.fullmatch(r"[a-z0-9]{4}", default["structuredContent"]["hash"])
     assert re.fullmatch(r"[a-z0-9]{12}", long["structuredContent"]["hash"])
-    assert bad["structuredContent"]["ok"] is False
-    assert bad["structuredContent"]["error"]["code"] == "invalid_argument"
+    assert _coord_refusal(bad, "gen_hash")["error"]["code"] == "invalid_argument"
+
+
+def _coord_refusal(result: dict, tool: str) -> dict:
+    """A coord refusal must reach goose as a tool error, its envelope in the text."""
+    assert result["isError"] is True, result
+    assert "structuredContent" not in result
+    (content,) = result["content"]
+    prefix = f"Error executing tool {tool}: "
+    assert content["text"].startswith(prefix), content["text"]
+    payload = json.loads(content["text"].removeprefix(prefix))
+    assert payload["ok"] is False
+    return payload
+
+
+def test_coord_refusal_is_a_tool_error_through_goose(sandbox, toy_repo):
+    results = probe(
+        sandbox,
+        "coord",
+        [
+            {
+                "action": "callTool",
+                "name": "worktree_create",
+                "arguments": {"slug": "../bad", "branch": "feature/bad", "repo": str(toy_repo)},
+            },
+            {"action": "callTool", "name": "verify_assertions", "arguments": {"paths": []}},
+            {"action": "callTool", "name": "worktree_list", "arguments": {"repo": str(toy_repo)}},
+        ],
+    )
+    bad_slug, no_paths, listing = (r["result"] for r in results)
+    error = _coord_refusal(bad_slug, "worktree_create")["error"]
+    assert error["code"] == "invalid_argument" and "invalid slug" in error["message"]
+    assert _coord_refusal(no_paths, "verify_assertions")["error"]["code"] == "invalid_argument"
+    # Same session, after two refusals: success is still structured and not an error.
+    assert listing["isError"] is False and listing["structuredContent"]["count"] == 1
 
 
 def test_coord_claim_signals_through_goose(sandbox, toy_repo):

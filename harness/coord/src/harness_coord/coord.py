@@ -1,8 +1,9 @@
 """Deterministic coordination: claim signals, worktrees, hashes, changed paths.
 
 Each function returns a plain JSON-serialisable dict on success and raises
-`CoordError` on refusal or failure. The MCP server and CLI translate that
-into `{"ok": false, "error": {...}}` / a non-zero exit.
+`CoordError` on refusal or failure. The CLI prints that as
+`{"ok": false, "error": {...}}` and exits non-zero; the MCP server returns it as
+a tool error (`isError: true`) whose text is the same JSON.
 """
 
 from __future__ import annotations

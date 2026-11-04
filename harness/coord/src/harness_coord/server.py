@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 
 from . import assertions, coord
 from .gitcmd import CoordError
@@ -13,11 +15,17 @@ from .gitcmd import CoordError
 mcp = FastMCP("coord")
 
 
+def _refuse(error: CoordError) -> ToolError:
+    # Raising makes the MCP result `isError: true`, so goose and the model see a
+    # failed call; the text keeps the CLI's JSON envelope so the code survives.
+    return ToolError(json.dumps({"ok": False, "error": error.as_dict()}))
+
+
 def _call(fn: Callable[[], dict[str, Any]]) -> dict[str, Any]:
     try:
         return fn()
     except CoordError as exc:
-        return {"ok": False, "error": exc.as_dict()}
+        raise _refuse(exc) from exc
 
 
 @mcp.tool()
@@ -26,8 +34,8 @@ def claim_signals(topic: str, repo: str = ".") -> dict[str, Any]:
     match `topic` (case-insensitive; `-`, `_`, `/`, `.` and spaces are equivalent).
 
     `remote_branch_count` and `worktree_count` are the positive control: no match with
-    counts > 0 means "read everything, nothing matched". A failed ls-remote returns
-    `ok: false` with an error, never an empty list."""
+    counts > 0 means "read everything, nothing matched". A failed ls-remote is a tool
+    error with code `network`, never an empty list."""
     return _call(lambda: coord.claim_signals(topic, repo))
 
 
@@ -69,7 +77,7 @@ def verify_assertions(paths: list[str]) -> dict[str, Any]:
     assertion is exempted by `# absence-ok: <reason>` on the line before; a bare pragma is
     not accepted. `files_scanned` is the positive control."""
     if not paths:
-        return {"ok": False, "error": {"code": "invalid_argument", "message": "paths is empty"}}
+        raise _refuse(CoordError("invalid_argument", "paths is empty"))
     return assertions.scan(paths).as_dict()
 
 

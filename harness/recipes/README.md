@@ -124,7 +124,8 @@ It checks:
 - `goose mcp-probe` on the coord, clickup and slack servers. Each must expose
   exactly its contract tools. Every clickup and slack tool must return a clean
   tool error naming the missing token. coord `gen_hash` and `claim_signals`
-  must work through goose's client;
+  must work through goose's client, and a coord refusal (invalid slug, empty
+  `paths`) must reach goose as `isError: true` with its error code in the text;
 - after `harness/install.sh` into the sandbox: `goose review --dry-run` finds
   the four checks, and `goose recipe list` finds the seven recipes. Over
   `goose acp`, summon's `load` lists all ten personas and loads each one, and

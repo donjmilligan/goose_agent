@@ -4,9 +4,12 @@ import asyncio
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import Repos, git
+from mcp.shared.memory import create_connected_server_and_client_session
+from mcp.types import CallToolResult, TextContent
 
 from harness_coord import TOOL_NAMES, cli, server
 
@@ -135,32 +138,63 @@ def test_server_exposes_exactly_the_contracted_tools():
     )
 
 
-def _call(name: str, args: dict[str, object]) -> dict[str, object]:
-    result = asyncio.run(server.mcp.call_tool(name, args))
-    assert isinstance(result, tuple)
-    structured = result[1]
-    assert isinstance(structured, dict)
-    return structured
+async def _client_call(name: str, args: dict[str, object]) -> CallToolResult:
+    async with create_connected_server_and_client_session(server.mcp) as session:
+        return await session.call_tool(name, args)
+
+
+def _call(name: str, args: dict[str, object]) -> CallToolResult:
+    return asyncio.run(_client_call(name, args))
+
+
+def _ok(name: str, args: dict[str, object]) -> dict[str, Any]:
+    result = _call(name, args)
+    assert result.isError is False, result.content
+    assert result.structuredContent is not None
+    return result.structuredContent
+
+
+def _refusal(name: str, args: dict[str, object]) -> dict[str, Any]:
+    """A refusal reaches the client as a tool error whose text carries the envelope."""
+    result = _call(name, args)
+    assert result.isError is True
+    assert result.structuredContent is None
+    (content,) = result.content
+    assert isinstance(content, TextContent)
+    prefix = f"Error executing tool {name}: "
+    assert content.text.startswith(prefix), content.text
+    return json.loads(content.text.removeprefix(prefix))
+
+
+def test_server_refusal_is_a_tool_error_carrying_the_code(repos: Repos):
+    payload = _refusal(
+        "worktree_create", {"slug": "../bad", "branch": "feature/bad", "repo": str(repos.work)}
+    )
+
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "invalid_argument"
+    assert "invalid slug" in payload["error"]["message"]
 
 
 def test_server_returns_structured_error_on_network_failure(repos: Repos):
     git(repos.work, "remote", "set-url", "origin", str(repos.origin.parent / "gone.git"))
 
-    payload = _call("claim_signals", {"topic": "harness", "repo": str(repos.work)})
+    payload = _refusal("claim_signals", {"topic": "harness", "repo": str(repos.work)})
 
     assert payload["ok"] is False
-    assert payload["error"]["code"] == "network"  # type: ignore[index]
+    assert payload["error"]["code"] == "network"
     assert "remote_branches" not in payload
 
 
 def test_server_success_and_verify_paths(repos: Repos, tmp_path: Path):
-    ok = _call("claim_signals", {"topic": "harness-coord", "repo": str(repos.work)})
+    ok = _ok("claim_signals", {"topic": "harness-coord", "repo": str(repos.work)})
     (tmp_path / "test_bad.py").write_text(VACUOUS)
-    scanned = _call("verify_assertions", {"paths": [str(tmp_path)]})
-    empty = _call("verify_assertions", {"paths": []})
+    scanned = _ok("verify_assertions", {"paths": [str(tmp_path)]})
+    empty = _refusal("verify_assertions", {"paths": []})
 
     assert ok["ok"] is True
     assert ok["remote_branches"] == ["feature/harness-coord"]
     assert scanned["clean"] is False
     assert scanned["files_scanned"] == 1
     assert empty["ok"] is False
+    assert empty["error"]["code"] == "invalid_argument"

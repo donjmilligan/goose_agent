@@ -11,13 +11,15 @@ for credentials (`GIT_TERMINAL_PROMPT=0`), and network calls time out after 15 s
 
 ## Tools
 
-goose exposes these as `coord__<tool>`. Every result is a JSON object with an
-`ok` field. A refusal or failure looks like
-`{"ok": false, "error": {"code": ..., "message": ...}}`.
+goose exposes these as `coord__<tool>`. Every successful result is a JSON object
+with an `ok` field. A refusal or failure is an MCP tool error (`isError: true`),
+so goose reports the call as failed. Its text is
+`Error executing tool <tool>: {"ok": false, "error": {"code": ..., "message": ...}}`.
+The CLI prints the same `{"ok": false, ...}` object and exits 1.
 
 | Tool | What it does |
 |---|---|
-| `claim_signals(topic, repo=".")` | Runs `git ls-remote --heads origin` and `git worktree list --porcelain` and returns the remote branches and worktrees whose names match `topic`. Matching is case-insensitive, and `-`, `_`, `/`, `.` and spaces count as the same character. It also returns `remote_branch_count` and `worktree_count`. Those totals are the positive control: if nothing matches and the counts are above 0, everything was read and nothing matched. If `ls-remote` fails, the result is `ok: false` with code `network`, never an empty list. |
+| `claim_signals(topic, repo=".")` | Runs `git ls-remote --heads origin` and `git worktree list --porcelain` and returns the remote branches and worktrees whose names match `topic`. Matching is case-insensitive, and `-`, `_`, `/`, `.` and spaces count as the same character. It also returns `remote_branch_count` and `worktree_count`. Those totals are the positive control: if nothing matches and the counts are above 0, everything was read and nothing matched. If `ls-remote` fails, the call is a tool error with code `network`, never an empty list. |
 | `worktree_create(slug, branch, base="origin/main", repo=".")` | Creates `<main-checkout>.wt/<slug>` on a new branch from `base`, using `--no-track` so a bare `git push` can't reach `base`. It resolves the main checkout even when called from inside a linked worktree. It refuses an invalid slug (`[a-z0-9][a-z0-9._-]{0,63}`, no `..`). It refuses a target that resolves inside any checkout, symlinks included (code `path_inside_repo`). It refuses a target path that already exists, and a branch that already exists locally or on origin (code `branch_exists`). It never pushes. |
 | `worktree_list(repo=".")` | Returns `count` and `worktrees`. Each worktree has `path`, `head`, `branch`, `detached`, `bare`, `locked` and `prunable`. |
 | `gen_hash(length=4)` | Returns a lowercase alphanumeric id built with `secrets`, for example the `{hash}` in a decision-record filename. Never invent one. |
