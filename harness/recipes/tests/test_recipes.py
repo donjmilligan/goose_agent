@@ -406,3 +406,21 @@ def test_bmad_story_qa_brief_and_qa_persona_agree_on_the_mutation_worktree():
     assert "slug `qa-<slug>`, branch `qa/<slug>`, and base `origin/<story branch>`" in persona
     assert "Never push the QA branch" in persona
     assert "git worktree remove" in persona and "git branch -D qa/<slug>" in persona
+
+
+def test_start_day_has_a_repo_local_task_source_when_slack_and_clickup_are_off():
+    """Smoke defect D8: with claim_channel and clickup_list both "none", Phase 4
+    had nothing to rank and answered "Cannot recommend a specific task" while a
+    `Status: Ready` story sat in docs/stories/."""
+    _, text = load("start-day")
+    phase4 = " ".join(_step(text, "## Phase 4: recommend one task").split())
+
+    assert "{{project_dir}}/docs/stories/" in phase4
+    assert "`Status: Ready`" in phase4
+    assert "always on" in phase4
+    assert "recommend one of those stories" in phase4
+    assert phase4.index("docs/stories/") < phase4.index("Rank candidates")
+    # The po writes Draft and the sm promotes to Ready: the recipe reads the
+    # status the personas actually write.
+    assert "`Status: Draft`" in _persona("po")
+    assert "`Status: Ready`" in _persona("sm")

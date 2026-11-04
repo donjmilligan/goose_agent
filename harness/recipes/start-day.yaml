@@ -91,12 +91,37 @@ instructions: |
   |---|---|---|
 
   ## Phase 4: recommend one task
-  Give one recommendation, not a menu. Rank candidates by these criteria, in
-  order:
-  1. Unblocks someone else.
+  Give one recommendation, not a menu.
+
+  **Gather the candidates** from every source, and say which ones were off:
+  - **Repo-local stories (always on).** List the stories ready to build with
+    `grep -lE '^[*_ ]*Status:[*_ ]*Ready' {{project_dir}}/docs/stories/*.md`.
+    The po writes stories as `Status: Draft`, and the sm sets
+    `Status: Ready` once a story can be built. Read each match for its
+    title, `Branch:`, `Task:` and **Depends on**. If the directory is
+    missing or nothing matches, say so, and check the grep with a positive
+    control: `grep -l '^Status:' {{project_dir}}/docs/stories/*.md` should
+    find the stories that do exist.
+  - **ClickUp tasks** from Phase 2, if the list is not "none". A task that
+    links a story file is the same candidate as that story, not a second one.
+  - **In-flight work** from Phase 0: your own worktrees and unpushed or
+    open branches.
+  Drop every candidate that agent-harness_coord__claim_signals (or a Slack claim) shows
+  someone else already has.
+
+  When Slack and ClickUp are both "none", the stories are your candidates:
+  recommend one of those stories. Say "nothing to recommend" only when every
+  source above came back empty, and then name each source and what it
+  returned.
+
+  Rank candidates by these criteria, in order:
+  1. Unblocks someone else. For a story, that means other stories list it
+     under **Depends on**.
   2. Is a live production or security problem. Verify it against
      origin/main before believing it.
   3. Is the oldest in-flight work in the focus area.
+  4. For stories that tie on all of the above, the lowest-numbered `Ready`
+     story whose dependencies are done.
 
   State in one line each:
   - what to take;
@@ -113,8 +138,8 @@ instructions: |
   Claimed right now by other sessions: <item → who>. Avoid these.
   Waiting on you: <messages needing a reply, decisions>
   Board deltas proposed: <n> comments, <n> status changes, <n> flagged.
-  Start here: <one task>. <why, in one line>.
-    Branch suggestion: <type>/<slug>. Claim it first, then use bmad-story or fan-out.
+  Start here: <one task or story path>. <why, in one line>.
+    Branch suggestion: <the story's Branch: line, or type/slug>. Claim it first, then use bmad-story or fan-out.
   Blocked on a human: <question → who>, or "nothing".
   ```
 
