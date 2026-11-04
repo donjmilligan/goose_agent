@@ -329,6 +329,20 @@ what I expected, and the evidence. The log paths are relative to
 - **Expected:** one rule. Either the recipe brief names the story file as
   always in scope, or the persona doesn't edit it.
 
+**D11 · harness `coord/src/harness_coord/coord.py:140-142`: re-creating an existing worktree gives a misleading error**
+- **Observed:** the containment check runs before the `path_exists` check.
+  So `agent-harness_coord__worktree_create` on a slug whose worktree already
+  exists returns `path_inside_repo`, with "refusing worktree at
+  …/toyrepo.wt/subtract: it is inside …/toyrepo.wt/subtract". The target is
+  reported as inside itself.
+- **Expected:** `path_exists` (line 142), or an idempotent success when the
+  branch matches.
+- **Impact:** `bmad-story`'s "reuse what an earlier attempt left behind"
+  depends on the model reading this error correctly. In run 2 the model
+  called `worktree_create` three times; the second and third returned this
+  error.
+- **Evidence:** `runs/20261104-023434/logs/bmad-story.stream.jsonl`.
+
 ### Not exercised, so not verified
 
 - **The `PreToolUse` guard (`guard.py`).** No run tried a forbidden command.
