@@ -45,6 +45,10 @@ Usage: harness/install.sh [--dry-run] [--uninstall] [--harness-root DIR]
 
 Respects HOME, XDG_CONFIG_HOME, XDG_STATE_HOME and GOOSE_PATH_ROOT the same
 way goose does, so it can be sandboxed with a temporary HOME.
+
+Also puts the harness-coord CLI on PATH (recipe checks call it) with
+`uv tool install --editable <harness>/coord`; uv's UV_TOOL_DIR and
+UV_TOOL_BIN_DIR choose where. A harness-coord it did not install is left alone.
 EOF
 }
 
@@ -107,6 +111,10 @@ PLUGIN_SRC="$HARNESS_ROOT/plugin/$PLUGIN_NAME"
 PLUGIN_LINK="$PLUGINS_DIR/$PLUGIN_NAME"
 MCP_TEMPLATE="$PLUGIN_SRC/.mcp.json.template"
 MCP_RENDERED="$PLUGIN_SRC/.mcp.json"
+# Recipes run `harness-coord verify-assertions`, so the CLI must be on PATH.
+# It is a uv tool (UV_TOOL_DIR / UV_TOOL_BIN_DIR are respected by uv itself).
+COORD_SRC="$HARNESS_ROOT/coord"
+COORD_TOOL="harness-coord"
 
 say() { printf '%s\n' "$*"; }
 warn() { WARNINGS=$((WARNINGS + 1)); printf 'warning: %s\n' "$*" >&2; }
@@ -123,6 +131,7 @@ exists() { [ -e "$1" ] || [ -L "$1" ]; }
 #   link   path  link-target
 #   block  path  created|existing   (marked block in the global .goosehints)
 #   dir    path  -                  (directory we created; removed only if empty)
+#   tool   name  source-dir         (uv tool this installer installed)
 OLD_MANIFEST=""
 if [ -f "$MANIFEST" ]; then OLD_MANIFEST="$(cat "$MANIFEST")"; fi
 NEW_MANIFEST=""
@@ -229,6 +238,57 @@ render_mcp_json() {
     rm -f "$rendered"
 }
 
+have_uv() { command -v uv >/dev/null 2>&1; }
+
+uv_tool_installed() {
+    uv tool list 2>/dev/null | awk -v t="$1" '$1 == t { found = 1 } END { exit !found }'
+}
+
+install_coord_cli() {
+    local recorded existing
+    recorded="$(manifest_detail tool "$COORD_TOOL")"
+    if ! have_uv; then
+        warn "skipping $COORD_TOOL CLI: uv not found; recipe checks that run \`$COORD_TOOL\` fail until it is on PATH"
+        if [ -n "$recorded" ]; then record tool "$COORD_TOOL" "$recorded"; fi
+        return 0
+    fi
+    if [ -n "$recorded" ] && uv_tool_installed "$COORD_TOOL"; then
+        if [ "$recorded" = "$COORD_SRC" ]; then
+            record tool "$COORD_TOOL" "$recorded"
+            return 0
+        fi
+        act "reinstall $COORD_TOOL CLI from $COORD_SRC (was $recorded)"
+        if [ "$DRY_RUN" -eq 0 ] && ! uv tool install --quiet --force --editable "$COORD_SRC"; then
+            warn "uv tool install of $COORD_TOOL failed; see above"
+            record tool "$COORD_TOOL" "$recorded"
+            return 0
+        fi
+        record tool "$COORD_TOOL" "$COORD_SRC"
+        return 0
+    fi
+    if [ -z "$recorded" ]; then
+        if uv_tool_installed "$COORD_TOOL"; then
+            warn "skipping $COORD_TOOL CLI: a uv tool of that name is already installed, not by this installer"
+            return 0
+        fi
+        if existing="$(command -v "$COORD_TOOL" 2>/dev/null)"; then
+            warn "skipping $COORD_TOOL CLI: already on PATH at $existing, not installed by this installer"
+            return 0
+        fi
+    fi
+    act "install $COORD_TOOL CLI (uv tool install --editable $COORD_SRC)"
+    if [ "$DRY_RUN" -eq 0 ]; then
+        if ! uv tool install --quiet --editable "$COORD_SRC"; then
+            warn "uv tool install of $COORD_TOOL failed; see above"
+            return 0
+        fi
+        if ! command -v "$COORD_TOOL" >/dev/null 2>&1; then
+            warn "$COORD_TOOL is installed in $(uv tool dir --bin), which is not on PATH; run \`uv tool update-shell\`"
+        fi
+    fi
+    record tool "$COORD_TOOL" "$COORD_SRC"
+}
+
 has_block() { [ -f "$1" ] && grep -Fxq "$BLOCK_BEGIN" "$1"; }
 
 install_hints_block() {
@@ -301,6 +361,14 @@ remove_artifact() {
             fi
             ;;
         block) remove_block "$path" "$detail" ;;
+        tool)
+            if ! have_uv; then
+                warn "cannot uninstall the $path CLI: uv not found; run \`uv tool uninstall $path\` later"
+            elif uv_tool_installed "$path"; then
+                act "uninstall $path CLI (uv tool uninstall $path)"
+                if [ "$DRY_RUN" -eq 0 ]; then uv tool uninstall --quiet "$path"; fi
+            fi
+            ;;
         dir) ;;
     esac
 }
@@ -391,6 +459,12 @@ EOF
         install_link "$PLUGIN_LINK" "$PLUGIN_SRC"
     else
         say "skip plugin: $PLUGIN_SRC not present"
+    fi
+
+    if [ -f "$COORD_SRC/pyproject.toml" ]; then
+        install_coord_cli
+    else
+        say "skip coord CLI: $COORD_SRC not present"
     fi
 
     if [ -f "$HARNESS_ROOT/WORKING_AGREEMENT.md" ]; then

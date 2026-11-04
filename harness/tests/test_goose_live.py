@@ -95,6 +95,10 @@ def git(cwd: Path, *args: str) -> str:
     ).stdout
 
 
+def uv_dir(*args: str) -> str:
+    return subprocess.run(["uv", *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
 def write_hooklog_plugin(plugins_dir: Path, log: Path) -> None:
     plugin = plugins_dir / "zz-hooklog"
     (plugin / "hooks").mkdir(parents=True)
@@ -120,7 +124,7 @@ def live(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Live]:
     home.mkdir()
     gitconfig = base / "gitconfig"
     gitconfig.write_text("")
-    real_uv_cache = os.environ.get("UV_CACHE_DIR") or str(Path.home() / ".cache" / "uv")
+    uv_tool_bin = base / "uv-bin"
     shims = base / "bin"
     notify_calls = base / "notify-calls.txt"
     write_notifier_shims(shims, notify_calls)
@@ -128,9 +132,12 @@ def live(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Live]:
         "HOME": str(home),
         "GOOSE_PATH_ROOT": str(root),
         "GOOSE_DISABLE_KEYRING": "1",
-        "PATH": f"{shims}{os.pathsep}{os.environ['PATH']}",
+        "PATH": os.pathsep.join([str(shims), str(uv_tool_bin), os.environ["PATH"]]),
         "TMPDIR": str(base),
-        "UV_CACHE_DIR": real_uv_cache,
+        "UV_CACHE_DIR": uv_dir("cache", "dir"),
+        "UV_PYTHON_INSTALL_DIR": uv_dir("python", "dir"),
+        "UV_TOOL_DIR": str(base / "uv-tools"),
+        "UV_TOOL_BIN_DIR": str(uv_tool_bin),
         "GIT_CONFIG_GLOBAL": str(gitconfig),
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_AUTHOR_NAME": "t",
@@ -274,3 +281,9 @@ def test_session_start_banner_is_shown_by_an_interactive_session(live: Live) -> 
     assert "Claim gate: other agents may be working" in result.stdout, result.stdout
     assert "Slack signal SKIPPED" in result.stdout
     assert live.event("SessionStart")["event"] == "SessionStart"
+
+
+def test_installed_harness_coord_cli_runs_from_a_goose_shell(live: Live) -> None:
+    result = live.goose("run", "--no-session", "-t", "!harness-coord gen-hash --help")
+    assert "usage: harness-coord gen-hash" in result.stdout, result.stdout
+    assert live.event("PreToolUseResult")["decision"] == "allow"

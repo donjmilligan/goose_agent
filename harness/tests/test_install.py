@@ -331,3 +331,178 @@ def test_shellcheck_clean():
         ["shellcheck", str(INSTALL_SH)], capture_output=True, text=True, check=False
     )
     assert result.returncode == 0, result.stdout
+
+
+# --- the `harness-coord` CLI (uv tool) -------------------------------------
+#
+# Recipes call `harness-coord verify-assertions`, so install.sh puts the CLI on
+# PATH with `uv tool install --editable <harness>/coord`. Every test below
+# sandboxes uv's tool and bin dirs; the uv cache and managed Pythons are shared
+# with the real ones so no test needs the network.
+
+UV = shutil.which("uv")
+needs_uv = pytest.mark.skipif(UV is None, reason="uv not installed")
+
+
+def _uv_dir(*args: str) -> str:
+    assert UV is not None
+    return subprocess.run(
+        [UV, *args], check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def make_cli_project(root: Path, output: str) -> Path:
+    """A tiny project that provides a `harness-coord` script printing `output`."""
+    (root / "src" / "fake_coord").mkdir(parents=True)
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "harness-coord"\nversion = "0.1.0"\n'
+        'requires-python = ">=3.12"\n'
+        '[project.scripts]\nharness-coord = "fake_coord:main"\n'
+        '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
+        '[tool.hatch.build.targets.wheel]\npackages = ["src/fake_coord"]\n'
+    )
+    (root / "src" / "fake_coord" / "__init__.py").write_text(
+        f"def main():\n    print({output!r})\n"
+    )
+    return root
+
+
+@pytest.fixture
+def uv_sandbox(tmp_path: Path, sandbox):
+    home, harness = sandbox
+    make_cli_project(harness / "coord", "harness coord cli")
+    tools, bin_dir = tmp_path / "uv-tools", tmp_path / "uv-bin"
+    env = {
+        "UV_TOOL_DIR": str(tools),
+        "UV_TOOL_BIN_DIR": str(bin_dir),
+        "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR") or _uv_dir("cache", "dir"),
+        "UV_PYTHON_INSTALL_DIR": _uv_dir("python", "dir"),
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+    }
+    return home, harness, bin_dir, env
+
+
+def uv_tools(env: dict[str, str]) -> str:
+    assert UV is not None
+    return subprocess.run(
+        [UV, "tool", "list"],
+        env={**os.environ, **env},
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+def run_cli(bin_dir: Path) -> str:
+    return subprocess.run(
+        [str(bin_dir / "harness-coord")], check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+@needs_uv
+def test_coord_cli_is_installed_on_path_and_recorded(uv_sandbox):
+    home, harness, bin_dir, env = uv_sandbox
+    result = run(home, harness, extra_env=env)
+    assert "install harness-coord CLI" in result.stdout
+    assert run_cli(bin_dir) == "harness coord cli"
+    assert "harness-coord v0.1.0" in uv_tools(env)
+    assert f"tool\tharness-coord\t{harness / 'coord'}" in manifest(home).read_text()
+
+
+@needs_uv
+def test_coord_cli_second_run_is_a_noop(uv_sandbox):
+    home, harness, bin_dir, env = uv_sandbox
+    run(home, harness, extra_env=env)
+    before = snapshot(home, bin_dir)
+    second = run(home, harness, extra_env=env)
+    assert "nothing to do" in second.stdout
+    assert snapshot(home, bin_dir) == before
+    assert run_cli(bin_dir) == "harness coord cli"
+
+
+@needs_uv
+def test_coord_cli_dry_run_installs_nothing(uv_sandbox):
+    home, harness, bin_dir, env = uv_sandbox
+    result = run(home, harness, "--dry-run", extra_env=env)
+    assert "[dry-run] would install harness-coord CLI" in result.stdout
+    assert not bin_dir.exists()
+    assert "harness-coord" not in uv_tools(env)
+
+
+@needs_uv
+def test_coord_cli_is_removed_by_uninstall(uv_sandbox):
+    home, harness, bin_dir, env = uv_sandbox
+    run(home, harness, extra_env=env)
+    assert (bin_dir / "harness-coord").exists()
+    dry = run(home, harness, "--uninstall", "--dry-run", extra_env=env)
+    assert "[dry-run] would uninstall harness-coord CLI" in dry.stdout
+    assert (bin_dir / "harness-coord").exists()
+    run(home, harness, "--uninstall", extra_env=env)
+    assert not (bin_dir / "harness-coord").exists()
+    assert "harness-coord" not in uv_tools(env)
+
+
+@needs_uv
+def test_foreign_coord_tool_is_never_touched(uv_sandbox, tmp_path):
+    home, harness, bin_dir, env = uv_sandbox
+    foreign = make_cli_project(tmp_path / "foreign", "someone else's coord")
+    assert UV is not None
+    subprocess.run(
+        [UV, "tool", "install", "-q", str(foreign)],
+        env={**os.environ, **env},
+        check=True,
+        capture_output=True,
+    )
+    result = run(home, harness, extra_env=env)
+    assert "harness-coord" in result.stderr and "not by this installer" in result.stderr
+    assert run_cli(bin_dir) == "someone else's coord"
+    assert "tool\tharness-coord" not in manifest(home).read_text()
+    run(home, harness, "--uninstall", extra_env=env)
+    assert run_cli(bin_dir) == "someone else's coord"
+
+
+def test_foreign_coord_on_path_is_left_alone(sandbox, tmp_path):
+    home, harness = sandbox
+    make_cli_project(harness / "coord", "harness coord cli")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "harness-coord").write_text("#!/bin/sh\necho mine\n")
+    (elsewhere / "harness-coord").chmod(0o755)
+    result = run(
+        home,
+        harness,
+        extra_env={
+            "UV_TOOL_DIR": str(tmp_path / "uv-tools"),
+            "UV_TOOL_BIN_DIR": str(tmp_path / "uv-bin"),
+            "PATH": f"{elsewhere}{os.pathsep}{os.environ['PATH']}",
+        },
+    )
+    assert "already on PATH" in result.stderr
+    assert not (tmp_path / "uv-bin").exists()
+    assert (elsewhere / "harness-coord").read_text() == "#!/bin/sh\necho mine\n"
+
+
+def test_coord_cli_skipped_with_a_warning_when_uv_is_missing(sandbox, tmp_path):
+    home, harness = sandbox
+    make_cli_project(harness / "coord", "harness coord cli")
+    assert shutil.which("uv", path="/usr/bin:/bin") is None
+    result = run(
+        home,
+        harness,
+        extra_env={"PATH": "/usr/bin:/bin", "UV_TOOL_BIN_DIR": str(tmp_path / "uv-bin")},
+    )
+    assert "uv not found" in result.stderr
+    assert not (tmp_path / "uv-bin").exists()
+    assert (home / ".agents" / "agents" / "dev.md").is_file()
+
+
+@needs_uv
+def test_coord_cli_follows_a_moved_harness_tree(uv_sandbox, tmp_path):
+    home, harness, bin_dir, env = uv_sandbox
+    run(home, harness, extra_env=env)
+    moved = make_harness(tmp_path / "moved").resolve()
+    make_cli_project(moved / "coord", "moved coord cli")
+    result = run(home, moved, extra_env=env)
+    assert "reinstall harness-coord CLI" in result.stdout
+    assert run_cli(bin_dir) == "moved coord cli"
+    assert f"tool\tharness-coord\t{moved / 'coord'}" in manifest(home).read_text()
