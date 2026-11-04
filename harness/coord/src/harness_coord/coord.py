@@ -138,9 +138,11 @@ def worktree_create(
     root = _main_worktree_root(repo)
     existing = [Path(w["path"]) for w in worktree_list(repo)["worktrees"]]
     target = root.parent / f"{root.name}.wt" / slug
-    ensure_outside(target, [root, *existing])
+    # Existence first: an existing worktree at the target is itself one of the
+    # checkouts, so the containment check would report it as inside itself.
     if target.exists():
         raise CoordError("path_exists", f"{target} already exists")
+    ensure_outside(target, [root, *existing])
 
     if git_succeeds(root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"):
         raise CoordError("branch_exists", f"branch {branch!r} already exists locally")

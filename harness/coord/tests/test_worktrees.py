@@ -104,6 +104,22 @@ def test_refuses_an_existing_target_path(repos: Repos):
     assert excinfo.value.code == "path_exists"
 
 
+def test_recreating_an_existing_worktree_reports_path_exists(repos: Repos):
+    """A retry that calls worktree_create again must hear "it exists", not the
+    containment refusal: the live worktree is itself one of the checkouts, so
+    checking containment first reported the target as inside itself."""
+    first = coord.worktree_create("subtract", "feature/subtract", repo=repos.work)
+
+    with pytest.raises(CoordError) as excinfo:
+        coord.worktree_create("subtract", "feature/subtract", repo=repos.work)
+
+    assert excinfo.value.code == "path_exists"
+    assert first["path"] in excinfo.value.message
+    assert git(Path(first["path"]), "rev-parse", "--abbrev-ref", "HEAD").strip() == (
+        "feature/subtract"
+    )
+
+
 @pytest.mark.parametrize(
     "slug", ["", "../escape", "a/b", "-x", ".hidden", "UPPER", "a..b", "a" * 65]
 )
