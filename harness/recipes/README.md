@@ -109,6 +109,27 @@ Every recipe is checked for:
 Four further tests compare the contract with the real tool lists and agent
 files once the sibling slices are in the same tree. They skip until then.
 
+### Against a real goose binary
+
+```bash
+harness/recipes/tests/goose_validate.sh path/to/goose   # or set GOOSE_BIN
+```
+
+`tests/test_goose_live.py` skips unless `GOOSE_BIN` is set. It needs no model
+and no tokens, and it runs goose in a temporary `GOOSE_PATH_ROOT` and `HOME`.
+It checks:
+
+- `goose recipe validate`, `--explain` and `--render-recipe` on every recipe,
+  including that goose refuses to render without the required parameters;
+- `goose mcp-probe` on the coord, clickup and slack servers. Each must expose
+  exactly its contract tools. Every clickup and slack tool must return a clean
+  tool error naming the missing token. coord `gen_hash` and `claim_signals`
+  must work through goose's client;
+- after `harness/install.sh` into the sandbox: `goose review --dry-run` finds
+  the four checks, and `goose recipe list` finds the seven recipes. Over
+  `goose acp`, summon's `load` lists all ten personas and loads each one, and
+  every `agent-harness_*__*` tool a recipe names is in the live tool list.
+
 ## goose limits these recipes work around
 
 - **A delegate's `working_dir` must sit inside the parent session's
