@@ -1,0 +1,4 @@
+# Rendered by harness/install.sh from .mcp.json.template; contains an absolute local path.
+plugin/agent-harness/.mcp.json
+__pycache__/
+.pytest_cache/

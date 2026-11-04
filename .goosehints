@@ -1,18 +1,22 @@
-This is a rust project with crates in the crates dir:
-goose: the main code for goose, contains all the core logic
-goose-bench: bench marking
-goose-cli: the command line interface, use goose crate
-goose-mcp: the mcp servers that ship with goose. the developer sub system is of special interest
-goose-server: the server that supports the desktop (electron) app. also known as goosed
+This is a rust project; the workspace is every dir in crates/ (root Cargo.toml `members = ["crates/*"]`):
+goose: the main code for goose, contains all the core logic (session runtime in src/agents/, ACP server in src/acp/, recipes, hints, plugins, hooks)
+goose-agent: the GDK agent loop (state machine in src/machine.rs)
+goose-cli: the `goose` binary; `goose serve` is the backend the desktop app spawns (ui/desktop/src/gooseServe.ts)
+goose-mcp: the mcp servers that ship with goose (the developer extension itself lives in goose/src/agents/platform_extensions/developer)
+goose-providers / goose-provider-types: LLM providers
+goose-sdk / goose-sdk-types: the goose Development Kit (GDK); release-plz.toml lists the published GDK crates
+also: goose-acp-macros, goose-context-management, goose-download-manager, goose-local-inference, goose-roaming, goose-test, goose-test-support
 
 
-ui/desktop has an electron app in typescript. 
+ui/desktop has an electron app in typescript. It talks to `goose serve` over ACP, not an OpenAPI server: there is no goose-server crate any more.
 
-non trivial features should be implemented in the goose crate and then be called from the goose-cli crate for the cli. for the desktop, you want to add routes to 
-goose-server/src/routes. you can then run `just generate-openapi` to generate the openapi spec which will modify the ui/desktop/src/api files. once you have
-that you can call the functionality from the server from the typescript.
+non trivial features should be implemented in the goose crate and then be called from the goose-cli crate for the cli. for the desktop, add or extend the ACP handlers in
+crates/goose/src/acp/server/, then run `just generate-acp-types` to regenerate crates/goose/acp-schema.json and ui/goose-acp-client/src/generated/, and call it from
+the typescript through the goose-acp-client package (ui/goose-acp-client). Do not recreate ui/desktop/src/api (see AGENTS.md).
 
-tips: 
+tips:
 - can look at unstaged changes for what is being worked on if starting
 - always check rust compiles, cargo fmt etc and `cargo clippy --all-targets -- -D warnings` (as well as run tests in files you are working on)
 - in ui/desktop, look at how you can run lint checks and if other tests can run
+
+harness/ is this fork's multi-agent harness (no Rust; goose extension points only): read harness/README.md before working there.
