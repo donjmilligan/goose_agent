@@ -2,7 +2,7 @@ version: 1.0.0
 title: QA check
 description: >-
   Verifies everything a change touched before it is reported DONE. Lists the
-  changed paths with coord__changed_paths, runs the project gate, then runs
+  changed paths with agent-harness_coord__changed_paths, runs the project gate, then runs
   verify-assertions on the changed tests. It offers the slow lane but never
   runs it unasked.
 
@@ -36,7 +36,7 @@ instructions: |
   - Slow lane: `{{slow_lane_command}}` ("none" means there isn't one)
 
   ## Step 1: what changed
-  Call coord__changed_paths(base="{{base}}", repo="{{project_dir}}"). It
+  Call agent-harness_coord__changed_paths(base="{{base}}", repo="{{project_dir}}"). It
   returns the committed changes since the merge-base, plus staged and
   unstaged files.
   - Group the paths by top-level directory, and name each area the change
@@ -56,7 +56,7 @@ instructions: |
 
   ## Step 3: verify-assertions
   Take the changed test files from step 1: Python files named `test_*.py`
-  or `*_test.py` that still exist. Pass them to coord__verify_assertions.
+  or `*_test.py` that still exist. Pass them to agent-harness_coord__verify_assertions.
   - If findings come back, the change is not DONE. Each test that asserts
     only an absence, with nothing proving the code ran, needs a positive
     assertion. If absence is the whole point of the test, it needs a

@@ -36,7 +36,7 @@ You run as a delegate and cannot delegate further.
 
 ## Process
 
-1. Run `coord__changed_paths(base)` to get the changed paths. Get this from
+1. Run `agent-harness_coord__changed_paths(base)` to get the changed paths. Get this from
    the tool, not from memory.
 2. For each changed symbol, search for its importers and its callers. Rate
    them:

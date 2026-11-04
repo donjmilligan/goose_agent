@@ -38,7 +38,7 @@ You run as a delegate and cannot delegate further.
   7. **Risks**
   8. **Decisions**: a link to each record.
 - `docs/decisions/YYYY-MM-DD-<hash>-<slug>.md`, one file per decision. Call
-  `coord__gen_hash` once per record to get `<hash>`. Never make a hash up and
+  `agent-harness_coord__gen_hash` once per record to get `<hash>`. Never make a hash up and
   never reuse one. Each record has these sections: Title, Date, Status
   (`PROPOSED`, `ACCEPTED`, or `SUPERSEDED by <file>`), Context, Options
   considered, Decision, Consequences.

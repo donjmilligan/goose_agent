@@ -106,7 +106,11 @@ SIMPLE_VAR_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(\|\s*[A-Za-z_][A-Za
 JINJA_BLOCK_RE = re.compile(r"\{[%#]")
 
 # The interface contract (plan, "Interface contract"): goose exposes MCP tools
-# as `<extension>__<tool>` (agents/extension_manager/mod.rs:363).
+# as `<extension key>__<tool>` (agents/extension_manager/mod.rs:363). The servers
+# load through the `agent-harness` plugin, which names each one
+# `agent-harness:<server>` (plugins/mcp_servers.rs:150); `name_to_key`
+# (config/extensions.rs:22-32) turns that into `agent-harness_<server>`.
+PLUGIN_KEY_PREFIX = "agent-harness_"
 CONTRACT_TOOLS = {
     "coord": {
         "claim_signals", "worktree_create", "worktree_list", "gen_hash",
@@ -118,7 +122,7 @@ CONTRACT_TOOLS = {
     },
     "slack": {"read_channel", "read_thread", "post_message", "reply", "find_claims"},
 }
-TOOL_REF_RE = re.compile(r"\b([a-z][a-z0-9]*)__([a-z][a-z0-9_]*)\b")
+TOOL_REF_RE = re.compile(r"(?<![A-Za-z0-9_-])([a-z][a-z0-9_-]*?)__([a-z][a-z0-9_]*)\b")
 
 # Persona agent files delegated to with `delegate(source: "<name>")`
 # (agents/platform_extensions/summon.rs:46-58, 1096-1132).
@@ -332,8 +336,9 @@ def tool_references(text: str) -> set[str]:
 def tool_reference_errors(text: str) -> list[str]:
     errors = []
     for ref in sorted(tool_references(text)):
-        ext, tool = ref.split("__", 1)
-        if tool not in CONTRACT_TOOLS.get(ext, set()):
+        key, tool = ref.split("__", 1)
+        ext = key.removeprefix(PLUGIN_KEY_PREFIX)
+        if key == ext or tool not in CONTRACT_TOOLS.get(ext, set()):
             errors.append(f"tools: {ref} is not in the MCP interface contract")
     return errors
 

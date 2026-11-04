@@ -171,11 +171,13 @@ through `name_to_key` (`config/extensions.rs:22-32`,
 `agents/extension_manager/mod.rs:363`). With the plugin, the tools are
 therefore `agent-harness_clickup__set_status` and so on.
 
-If recipes need the bare names, register the three servers as top-level
-extensions with `goose configure` (the command is
-`uv run --project <harness>/clients/clickup harness-clickup-mcp`, and so on),
-and leave the plugin to hooks only. This is an open decision; see the
-decision record.
+**Decided at integration (2026-11-04):** the plugin is the only way the
+servers get registered, so install never edits goose config. Every persona,
+recipe and the working agreement therefore uses the prefixed names
+(`agent-harness_coord__worktree_create`, `agent-harness_clickup__set_status`, …).
+Both validators reject a bare `coord__*` reference, so a regression to the
+old form fails the gate. If you register a server by hand as a top-level
+extension (see each client's README), its tools are the short form instead.
 
 ## The BMAD flow
 
@@ -183,7 +185,7 @@ decision record.
 |---|---|---|---|
 | Plan | `bmad-plan` | analyst → pm → architect | `docs/prd.md`, `docs/architecture.md` |
 | Shard | `bmad-shard` | po | `docs/epics/`, `docs/stories/` |
-| Build one story | `bmad-story` | sm (context-complete story) → dev (in a `coord__worktree_create` worktree) → qa | branch pushed. `retry.checks` runs the project gate and `harness-coord verify-assertions` |
+| Build one story | `bmad-story` | sm (context-complete story) → dev (in a `agent-harness_coord__worktree_create` worktree) → qa | branch pushed. `retry.checks` runs the project gate and `harness-coord verify-assertions` |
 | Many stories | `fan-out` | one delegate per story, rolling pool of 5 or fewer (goose's `GOOSE_MAX_CONCURRENT_SUBAGENTS`) | branches pushed. Claims are posted only when a claim channel is configured. No merges, no PRs |
 | Day cycle | `start-day`, `end-day` | — | inventory and proposals. Nothing is merged |
 | Review | `qa-check`, `goose review` | qa, checks | findings |
@@ -209,9 +211,9 @@ NEEDS_CONTEXT.
   check looks for numbers that don't.
 - **Claim before work, using three signals:** the claim channel, remote
   branches and worktrees. Push early so your branch is visible.
-- **One worktree per session, outside the repo.** `coord__worktree_create`
+- **One worktree per session, outside the repo.** `agent-harness_coord__worktree_create`
   refuses nested paths.
-- **Comment before every status change.** `clickup__set_status` posts the
+- **Comment before every status change.** `agent-harness_clickup__set_status` posts the
   comment and then flips, so a silent flip can't happen.
 - **An agent's ceiling is review.** `set_status` refuses done/closed.
 - **No PRs unless asked, and no merges.** The `PreToolUse` hook blocks

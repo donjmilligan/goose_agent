@@ -16,9 +16,9 @@ name it in your report and the caller will run it.
 ## Inputs
 
 - The caller's idea, problem statement or request.
-- Optionally, a ClickUp task id. Read it with `clickup__get_task` and
-  `clickup__get_comments`.
-- Optionally, a Slack thread. Read it with `slack__read_thread`.
+- Optionally, a ClickUp task id. Read it with `agent-harness_clickup__get_task` and
+  `agent-harness_clickup__get_comments`.
+- Optionally, a Slack thread. Read it with `agent-harness_slack__read_thread`.
 - The repository as it is today: README, `docs/`, and any code that already
   does part of the job.
 

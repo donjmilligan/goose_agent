@@ -20,7 +20,7 @@ servers.
 | `fan-out` | Plans a batch and shows the table, then waits for approval. Then it claims, runs one dev delegate per item in its own worktree, and verifies each report | Worktrees and branches. Slack claims if `claim_channel` is set. ClickUp comment, then status (ceiling: review) |
 | `start-day` | Orients you, reads claims, reconciles the board and recommends **one** task | Nothing |
 | `end-day` | Drains findings to ClickUp (with your approval), then inventories and classifies your branches and proposes cleanup | Approved ClickUp comments and tasks, and deletions you confirm one at a time. Never merges |
-| `qa-check` | Runs `coord__changed_paths`, then the gate, then verify-assertions on the changed tests. It offers the slow lane but never runs it unasked | Nothing, unless you approve the slow lane |
+| `qa-check` | Runs `agent-harness_coord__changed_paths`, then the gate, then verify-assertions on the changed tests. It offers the slow lane but never runs it unasked | Nothing, unless you approve the slow lane |
 
 ## Parameters
 

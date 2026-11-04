@@ -32,15 +32,15 @@ You run as a delegate and cannot delegate further.
 ## Process
 
 1. Confirm `Status: Ready`. Otherwise stop: NEEDS_CONTEXT.
-2. Claim check. Run `coord__claim_signals` with the slug as the topic. If a
-   claim channel is configured, also run `slack__find_claims`. An existing
+2. Claim check. Run `agent-harness_coord__claim_signals` with the slug as the topic. If a
+   claim channel is configured, also run `agent-harness_slack__find_claims`. An existing
    branch, worktree or open claim means BLOCKED.
-3. Run `coord__worktree_create(slug, branch, base="origin/main")`, with the
+3. Run `agent-harness_coord__worktree_create(slug, branch, base="origin/main")`, with the
    slug and branch from the story. Work only in that path. Never write to the
    primary checkout. Set the story to `Status: In Progress` on the branch,
    commit, and push early: `git push -u origin <branch>`.
 4. If there is a task id, find the in-progress status with
-   `clickup__list_statuses`. Call `clickup__set_status` with a comment giving
+   `agent-harness_clickup__list_statuses`. Call `agent-harness_clickup__set_status` with a comment giving
    your plan and branch name.
 5. Implement each AC. Each commit holds the code and the tests for it
    together.
@@ -51,15 +51,15 @@ You run as a delegate and cannot delegate further.
    - the assertion is sound but no fixture reaches the branch, so add the
      fixture;
    - the mutation does not change behaviour, so say why.
-7. Run `coord__changed_paths(base="origin/main")`. Every path in the result
+7. Run `agent-harness_coord__changed_paths(base="origin/main")`. Every path in the result
    must be in Context files. Revert anything else, or stop.
-8. Run `coord__verify_assertions` on the changed test files. For each
+8. Run `agent-harness_coord__verify_assertions` on the changed test files. For each
    flagged assertion, pair it with a presence assertion, or annotate it
    `# absence-ok: <reason>`.
 9. Run every command under Gates exactly as written. Record each command and
    its pass and fail counts.
 10. Fill in the Dev record, set `Status: Review`, commit, and push.
-11. If there is a task id, call `clickup__set_status` with the review status.
+11. If there is a task id, call `agent-harness_clickup__set_status` with the review status.
     The comment gives the branch at its sha, the gate counts and the
     mutation evidence.
 

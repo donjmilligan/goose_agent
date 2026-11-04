@@ -65,32 +65,32 @@ EXPECTED_CHECKS = {
 }
 
 CONTRACT_TOOLS = {
-    "coord__claim_signals",
-    "coord__worktree_create",
-    "coord__worktree_list",
-    "coord__gen_hash",
-    "coord__changed_paths",
-    "coord__verify_assertions",
-    "clickup__get_task",
-    "clickup__list_tasks",
-    "clickup__get_comments",
-    "clickup__list_statuses",
-    "clickup__create_task",
-    "clickup__add_comment",
-    "clickup__update_task",
-    "clickup__set_status",
-    "slack__read_channel",
-    "slack__read_thread",
-    "slack__post_message",
-    "slack__reply",
-    "slack__find_claims",
+    "agent-harness_coord__claim_signals",
+    "agent-harness_coord__worktree_create",
+    "agent-harness_coord__worktree_list",
+    "agent-harness_coord__gen_hash",
+    "agent-harness_coord__changed_paths",
+    "agent-harness_coord__verify_assertions",
+    "agent-harness_clickup__get_task",
+    "agent-harness_clickup__list_tasks",
+    "agent-harness_clickup__get_comments",
+    "agent-harness_clickup__list_statuses",
+    "agent-harness_clickup__create_task",
+    "agent-harness_clickup__add_comment",
+    "agent-harness_clickup__update_task",
+    "agent-harness_clickup__set_status",
+    "agent-harness_slack__read_channel",
+    "agent-harness_slack__read_thread",
+    "agent-harness_slack__post_message",
+    "agent-harness_slack__reply",
+    "agent-harness_slack__find_claims",
 }
 
 STATUSES = ("DONE", "DONE_WITH_CONCERNS", "BLOCKED", "NEEDS_CONTEXT")
 PERSONA_SECTIONS = ("## Inputs", "## Outputs", "## Hard rules", "## Stop conditions")
 COMPLETION_HEADING = "## Completion protocol"
 
-TOOL_REF = re.compile(r"(?<![A-Za-z0-9_])([a-z][a-z0-9-]*__[a-z][a-z0-9_]*)")
+TOOL_REF = re.compile(r"(?<![A-Za-z0-9_-])([a-z][a-z0-9_-]*?__[a-z][a-z0-9_]*)")
 
 
 def rust_parse_frontmatter(text: str) -> tuple[object, str] | None:
@@ -181,7 +181,7 @@ description: A demo persona.
 ## Inputs
 x
 ## Outputs
-`coord__gen_hash`
+`agent-harness_coord__gen_hash`
 ## Hard rules
 x
 ## Stop conditions
@@ -239,12 +239,12 @@ def test_readme_is_not_parsed_as_an_agent_but_names_every_persona():
 
 def test_personas_reference_contract_tools():
     refs = set().union(*(tool_refs(p.read_text()) for p in persona_files()))
-    assert {"coord__worktree_create", "coord__verify_assertions", "coord__gen_hash"} <= refs
+    assert {"agent-harness_coord__worktree_create", "agent-harness_coord__verify_assertions", "agent-harness_coord__gen_hash"} <= refs
     assert refs <= CONTRACT_TOOLS
 
 
 def test_tool_ref_scanner_finds_refs_and_ignores_dunders():
-    assert tool_refs("call `coord__nope` then `slack__reply`") == {"coord__nope", "slack__reply"}
+    assert tool_refs("call `agent-harness_coord__nope` then `agent-harness_slack__reply`") == {"agent-harness_coord__nope", "agent-harness_slack__reply"}
     assert tool_refs("def __init__(self): x.__dict__") == set()  # absence-ok: hit case on line above
 
 
@@ -262,7 +262,7 @@ def test_validators_accept_known_good_inputs():
         (lambda t: t.replace("description: A demo persona.\n", ""), "missing key 'description'"),
         (lambda t: t.replace("name: demo", "name: other"), "!= file stem"),
         (lambda t: t.replace("A demo persona.", "x" * 161), "description over 160"),
-        (lambda t: t.replace("coord__gen_hash", "coord__make_hash"), "'coord__make_hash' not in contract"),
+        (lambda t: t.replace("agent-harness_coord__gen_hash", "agent-harness_coord__make_hash"), "'agent-harness_coord__make_hash' not in contract"),
         (lambda t: t.replace("NEEDS_CONTEXT", "NEEDS_INFO"), "missing status NEEDS_CONTEXT"),
         (lambda t: t.replace("DONE, ", ""), "missing status DONE"),
         (lambda t: t.replace("## Stop conditions\n", ""), "missing section '## Stop conditions'"),
@@ -285,7 +285,7 @@ def test_agent_validator_rejects(mutate, expected):
         (lambda t: t.replace("name: demo\n", "name: demo\nturn-limit: 0\n"), "turn-limit must be"),
         (lambda t: t.replace("Flag things.\n", ""), "empty body"),
         (lambda t: "\n" + t.split("---", 2)[2], "must start with ---"),
-        (lambda t: t.replace("Flag things.", "use slack__dm"), "'slack__dm' not in contract"),
+        (lambda t: t.replace("Flag things.", "use agent-harness_slack__dm"), "'agent-harness_slack__dm' not in contract"),
     ],
 )
 def test_check_validator_rejects(mutate, expected):

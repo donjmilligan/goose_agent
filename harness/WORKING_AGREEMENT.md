@@ -24,8 +24,8 @@ it, nothing per run, and you can test it.
   deterministic. If it is both, split it: the deterministic part becomes a
   script plus tests, and the latent part becomes a prompt plus a check.
 - The harness already does this for its own conventions. Random ids come from
-  `coord__gen_hash`, claim signals from `coord__claim_signals`, and worktrees
-  from `coord__worktree_create`. Absence-only assertions are flagged by
+  `agent-harness_coord__gen_hash`, claim signals from `agent-harness_coord__claim_signals`, and worktrees
+  from `agent-harness_coord__worktree_create`. Absence-only assertions are flagged by
   `harness-coord verify-assertions`. Use these tools rather than improvising
   what they do.
 
@@ -144,7 +144,7 @@ Plan first. A plan is not a claim. Before you touch the board or open an
 editor, check all three claim signals, even if the first one looks decisive.
 Each one covers a window the others cannot see.
 
-1. **The claim channel:** `slack__find_claims(channel, topic)` lists claims
+1. **The claim channel:** `agent-harness_slack__find_claims(channel, topic)` lists claims
    that have no completion yet. If `HARNESS_CLAIM_CHANNEL` is not set, say
    that you skipped this check. Don't pretend it passed.
 2. **Remote branches:** a branch exists from the moment work starts, so it
@@ -152,7 +152,7 @@ Each one covers a window the others cannot see.
    strongest signal.
 3. **Worktrees:** another session may already be working locally.
 
-`coord__claim_signals(topic, repo)` runs signals 2 and 3. Its output includes
+`agent-harness_coord__claim_signals(topic, repo)` runs signals 2 and 3. Its output includes
 the total remote branch count as a positive control. If a signal matches your
 topic, the work is taken: pick something else or ask. Then post your claim
 (what you're taking, and the branch it will land on), but only to a channel in
@@ -165,7 +165,7 @@ commit, so your claim shows up in signal 2.
 ## 6. One worktree per session, outside the repo
 
 - Never work in the shared checkout. Create your worktree with
-  `coord__worktree_create(slug, branch)`. It puts the worktree at
+  `agent-harness_coord__worktree_create(slug, branch)`. It puts the worktree at
   `<repo>.wt/<slug>` off `origin/main` and refuses any path inside the repo.
   Nested worktrees break tooling and get committed by accident.
 - Every edit, test run and commit happens inside your worktree, with
@@ -197,7 +197,7 @@ Write a record before any change that touches 3 or more files, introduces a
 pattern, or chooses between real alternatives.
 
 - **Path:** `docs/decisions/YYYY-MM-DD-<hash>-<slug>.md`.
-- **Hash:** 4 lowercase alphanumeric characters from `coord__gen_hash`.
+- **Hash:** 4 lowercase alphanumeric characters from `agent-harness_coord__gen_hash`.
   **Never invent the hash yourself.** A model asked for "random" does not
   sample uniformly: three sessions once produced the same "random" value
   independently.
@@ -218,11 +218,11 @@ pattern, or chooses between real alternatives.
 
 ## 9. Task tracker (ClickUp)
 
-- Read the list's real statuses (`clickup__list_statuses`); don't assume
+- Read the list's real statuses (`agent-harness_clickup__list_statuses`); don't assume
   column names.
 - **Comment before every status change, with no exceptions.** Use
-  `clickup__set_status(task_id, status, comment)`, which posts the comment
-  and then changes the status. `clickup__update_task` cannot change status.
+  `agent-harness_clickup__set_status(task_id, status, comment)`, which posts the comment
+  and then changes the status. `agent-harness_clickup__update_task` cannot change status.
   The comment gives:
   - the decision
   - what you did against the plan, with evidence

@@ -17,7 +17,7 @@ You run as a delegate and cannot delegate further.
 - `docs/brief.md`. This is required. If it is missing, stop; never write a
   brief yourself.
 - Any rulings the caller passes in, and any ClickUp context you read with
-  `clickup__get_task` or `clickup__get_comments`.
+  `agent-harness_clickup__get_task` or `agent-harness_clickup__get_comments`.
 - The repository, to check what already exists.
 
 ## Outputs

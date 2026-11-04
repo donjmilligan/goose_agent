@@ -54,7 +54,7 @@ changes could not be gated here.
   can be tested without network or tokens. Each server's tests run on their
   own.
 - Con: it cannot add worktree isolation to `summon` itself, so isolation is a
-  protocol plus a `coord__worktree_create` tool, not an enforced property.
+  protocol plus a `agent-harness_coord__worktree_create` tool, not an enforced property.
 - Con: goose refuses per-file symlinks for agents, recipes, checks and hints
   (see Decision), so those are installed as copies and have to be
   re-installed after an edit.
@@ -165,11 +165,13 @@ loader, not assumed:**
   `agents/extension_manager/mod.rs:363`).
   - Loaded via the plugin, the tools are therefore
     `agent-harness_clickup__set_status`, not the `clickup__set_status` the
-    interface contract names.
-  - The contract names hold only if the servers are registered as top-level
-    extensions named `clickup`, `slack` and `coord` (`goose configure` or
-    `config.yaml`).
-  - **This needs a decision before recipes depend on exact tool names.**
+    original interface contract named.
+  - **Resolved at integration, same day:** the plugin stays the single
+    registration path (no edits to goose config), and every persona and
+    recipe uses the prefixed names. Rejected: top-level extensions via
+    `goose configure`, because it is interactive and editing `config.yaml`
+    from a shell script risks a user's existing config. Both validators fail
+    on a bare `coord__*` / `clickup__*` / `slack__*` reference.
 - An agent still *can* skip the worktree step, because isolation is a
   protocol. The `PreToolUse` guardrail hook narrows what it can do in the
   shared checkout, but it does not make isolation structural.
@@ -196,8 +198,7 @@ loader, not assumed:**
 2. nested delegation
 3. a claim-heartbeat `Operation` through `StateMachineConfig.extra_operations`
 4. `CLAUDE.md` in the default `CONTEXT_FILE_NAMES`
-5. a decision on the plugin tool-prefix question above: either top-level
-   extension registration, or a goose option to register plugin servers
-   without the `<plugin>:` prefix
+5. optionally, a goose option to register plugin servers without the
+   `<plugin>:` prefix, which would allow the shorter tool names
 6. porting the Figma handler, which is a large export pipeline and low value
    as MCP today

@@ -31,7 +31,7 @@ You run as a delegate and cannot delegate further.
   - **Top findings by cause**: each with `path:line`.
   - **Not done**: what you skipped, and why.
 - Scratch files only, under a temp directory outside the repo (`mktemp -d`).
-- If a task id was given, one `clickup__add_comment` with the scores and the
+- If a task id was given, one `agent-harness_clickup__add_comment` with the scores and the
   top findings. Never create tasks and never change a status.
 
 ## Process

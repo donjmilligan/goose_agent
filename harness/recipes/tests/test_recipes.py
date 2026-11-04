@@ -15,8 +15,8 @@ EXPECTED_RECIPES = {
 RECIPE_PATHS = sorted(RECIPES_DIR.glob("*.yaml"))
 
 WRITE_TOOLS = {
-    "clickup__create_task", "clickup__add_comment", "clickup__update_task", "clickup__set_status",
-    "slack__post_message", "slack__reply", "coord__worktree_create",
+    "agent-harness_clickup__create_task", "agent-harness_clickup__add_comment", "agent-harness_clickup__update_task", "agent-harness_clickup__set_status",
+    "agent-harness_slack__post_message", "agent-harness_slack__reply", "agent-harness_coord__worktree_create",
 }
 
 
@@ -81,26 +81,26 @@ def test_bmad_plan_delegates_in_order_analyst_pm_architect():
 # Tools each recipe must reference. Paired with validate_recipe's check that
 # every reference is in the contract.
 REQUIRED_TOOLS = {
-    "bmad-shard": {"clickup__list_tasks", "clickup__create_task"},
+    "bmad-shard": {"agent-harness_clickup__list_tasks", "agent-harness_clickup__create_task"},
     "bmad-story": {
-        "coord__worktree_create", "coord__worktree_list", "coord__claim_signals",
-        "coord__changed_paths", "coord__verify_assertions",
-        "clickup__add_comment", "clickup__set_status", "clickup__list_statuses",
+        "agent-harness_coord__worktree_create", "agent-harness_coord__worktree_list", "agent-harness_coord__claim_signals",
+        "agent-harness_coord__changed_paths", "agent-harness_coord__verify_assertions",
+        "agent-harness_clickup__add_comment", "agent-harness_clickup__set_status", "agent-harness_clickup__list_statuses",
     },
     "fan-out": {
-        "coord__claim_signals", "coord__worktree_create", "coord__worktree_list",
-        "coord__gen_hash", "coord__changed_paths", "coord__verify_assertions",
-        "slack__find_claims", "slack__post_message", "slack__reply",
-        "clickup__get_task", "clickup__get_comments", "clickup__list_tasks",
-        "clickup__list_statuses", "clickup__add_comment", "clickup__set_status",
+        "agent-harness_coord__claim_signals", "agent-harness_coord__worktree_create", "agent-harness_coord__worktree_list",
+        "agent-harness_coord__gen_hash", "agent-harness_coord__changed_paths", "agent-harness_coord__verify_assertions",
+        "agent-harness_slack__find_claims", "agent-harness_slack__post_message", "agent-harness_slack__reply",
+        "agent-harness_clickup__get_task", "agent-harness_clickup__get_comments", "agent-harness_clickup__list_tasks",
+        "agent-harness_clickup__list_statuses", "agent-harness_clickup__add_comment", "agent-harness_clickup__set_status",
     },
     "start-day": {
-        "coord__worktree_list", "coord__claim_signals", "slack__read_channel",
-        "slack__read_thread", "slack__find_claims", "clickup__list_tasks",
-        "clickup__list_statuses", "clickup__get_task", "clickup__get_comments",
+        "agent-harness_coord__worktree_list", "agent-harness_coord__claim_signals", "agent-harness_slack__read_channel",
+        "agent-harness_slack__read_thread", "agent-harness_slack__find_claims", "agent-harness_clickup__list_tasks",
+        "agent-harness_clickup__list_statuses", "agent-harness_clickup__get_task", "agent-harness_clickup__get_comments",
     },
-    "end-day": {"coord__worktree_list", "clickup__list_tasks", "clickup__add_comment", "clickup__create_task"},
-    "qa-check": {"coord__changed_paths", "coord__verify_assertions"},
+    "end-day": {"agent-harness_coord__worktree_list", "agent-harness_clickup__list_tasks", "agent-harness_clickup__add_comment", "agent-harness_clickup__create_task"},
+    "qa-check": {"agent-harness_coord__changed_paths", "agent-harness_coord__verify_assertions"},
 }
 
 
@@ -116,14 +116,14 @@ def test_start_day_writes_nothing():
     _, text = load("start-day")
     refs = rs.tool_references(text)
     assert refs & WRITE_TOOLS == set()
-    assert {"slack__find_claims", "clickup__list_tasks", "coord__claim_signals"} <= refs
+    assert {"agent-harness_slack__find_claims", "agent-harness_clickup__list_tasks", "agent-harness_coord__claim_signals"} <= refs
 
 
 def test_end_day_never_changes_a_status_or_merges():
     _, text = load("end-day")
     refs = rs.tool_references(text)
-    assert "clickup__set_status" not in refs
-    assert "clickup__add_comment" in refs
+    assert "agent-harness_clickup__set_status" not in refs
+    assert "agent-harness_clickup__add_comment" in refs
     assert "Never merge" in text
     assert "gh pr merge --" not in text
 
@@ -131,8 +131,8 @@ def test_end_day_never_changes_a_status_or_merges():
 @pytest.mark.parametrize("name", ["bmad-story", "fan-out"])
 def test_status_changes_follow_a_comment(name):
     _, text = load(name)
-    comments = [m.start() for m in re.finditer(r"clickup__add_comment", text)]
-    statuses = [m.start() for m in re.finditer(r"clickup__set_status", text)]
+    comments = [m.start() for m in re.finditer(r"agent-harness_clickup__add_comment", text)]
+    statuses = [m.start() for m in re.finditer(r"agent-harness_clickup__set_status", text)]
     assert comments and statuses
     assert comments[0] < statuses[0]
     assert "never set done or closed" in text.lower()
@@ -144,7 +144,7 @@ def test_fan_out_posts_slack_claims_only_when_a_channel_is_set():
     assert claim_param["requirement"] == "optional"
     assert claim_param["default"] == "none"
     assert '"none" means Slack claims are off' in text
-    assert "slack__post_message(channel=\"{{claim_channel}}\"" in text
+    assert "agent-harness_slack__post_message(channel=\"{{claim_channel}}\"" in text
     assert "Post the claim, if claims are on" in text
 
 
@@ -155,7 +155,7 @@ def test_fan_out_caps_concurrency_at_five_and_forbids_merges():
     assert "**No merges and no PRs.**" in text
     assert "**Plan before any write.**" in text
     assert "**Rulings stop work.**" in text
-    assert text.index("Present the plan and stop") < text.index("coord__worktree_create(slug")
+    assert text.index("Present the plan and stop") < text.index("agent-harness_coord__worktree_create(slug")
 
 
 def test_bmad_story_completion_protocol_schema():
@@ -207,7 +207,7 @@ parameters:
     requirement: required
     description: x
 instructions: |
-  Hello {{who}}. Use coord__gen_hash and delegate(source: "dev").
+  Hello {{who}}. Use agent-harness_coord__gen_hash and delegate(source: "dev").
 """
 
 
@@ -224,8 +224,8 @@ def test_validator_accepts_the_good_fixture():
         (lambda t: t.replace("version: 1.0.0\n", ""), "recipe: missing required key 'version'"),
         (lambda t: t.replace("Hello {{who}}", "Hello {{who}} {{where}}"), "{{where}} is used but not declared"),
         (lambda t: t.replace("Hello {{who}}", "Hello"), "'who' is declared but never used"),
-        (lambda t: t.replace("coord__gen_hash", "coord__gen_hashes"), "coord__gen_hashes is not in the MCP"),
-        (lambda t: t.replace("coord__gen_hash", "github__create_pr"), "github__create_pr is not in the MCP"),
+        (lambda t: t.replace("agent-harness_coord__gen_hash", "agent-harness_coord__gen_hashes"), "agent-harness_coord__gen_hashes is not in the MCP"),
+        (lambda t: t.replace("agent-harness_coord__gen_hash", "github__create_pr"), "github__create_pr is not in the MCP"),
         (lambda t: t.replace('source: "dev"', 'source: "developer"'), "source 'developer' is not one"),
         (lambda t: t.replace("requirement: required", "requirement: optional"), "optional parameter needs a default"),
         (lambda t: t.replace("input_type: string", "input_type: text"), "input_type 'text'"),

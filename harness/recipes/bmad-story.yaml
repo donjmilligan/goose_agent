@@ -2,7 +2,7 @@ version: 1.0.0
 title: BMAD story (SM, dev, QA)
 description: >-
   Builds one story end to end. The sm persona finalises the story file, dev
-  builds it in its own worktree from coord__worktree_create, and qa reviews.
+  builds it in its own worktree from agent-harness_coord__worktree_create, and qa reviews.
   Retry checks re-run the project gate and harness-coord verify-assertions,
   and the result follows the completion protocol.
 
@@ -62,9 +62,9 @@ instructions: |
     branch.
   - Delegates cannot delegate further, and they know only what you pass
     them. Every brief names the absolute worktree path.
-  - ClickUp writes use clickup__add_comment first, then clickup__set_status.
+  - ClickUp writes use agent-harness_clickup__add_comment first, then agent-harness_clickup__set_status.
     The ceiling is the list's review status, read with
-    clickup__list_statuses. Never set done or closed.
+    agent-harness_clickup__list_statuses. Never set done or closed.
   - Rulings stop work. If the story needs a product or architecture decision
     that no document records, stop with NEEDS_CONTEXT. List the options with
     a worked example of each. Do not pick one.
@@ -73,20 +73,20 @@ instructions: |
     what an earlier attempt left behind rather than recreating it.
 
   ## Step 0: worktree
-  1. coord__worktree_list(repo="{{project_dir}}"). If a worktree at
+  1. agent-harness_coord__worktree_list(repo="{{project_dir}}"). If a worktree at
      {{project_dir}}.wt/{{slug}} on {{branch}} already exists, this is a
      retry: reuse it, and read `git -C {{project_dir}}.wt/{{slug}} log
      --oneline {{base}}..HEAD` to see what the last attempt did.
-  2. Otherwise coord__claim_signals(topic="{{slug}}", repo="{{project_dir}}").
+  2. Otherwise agent-harness_coord__claim_signals(topic="{{slug}}", repo="{{project_dir}}").
      If another branch or worktree matches this story, stop with BLOCKED and
      name it.
-  3. Otherwise coord__worktree_create(slug="{{slug}}", branch="{{branch}}",
+  3. Otherwise agent-harness_coord__worktree_create(slug="{{slug}}", branch="{{branch}}",
      base="{{base}}", repo="{{project_dir}}").
   4. The path it returns must equal {{project_dir}}.wt/{{slug}}, because the
      retry checks hard-code that path. If it differs, stop with BLOCKED and
      report both paths.
-  5. If the task id is not "none": clickup__get_task, then clickup__add_comment
-     with the plan, then clickup__set_status to the list's in-progress status.
+  5. If the task id is not "none": agent-harness_clickup__get_task, then agent-harness_clickup__add_comment
+     with the plan, then agent-harness_clickup__set_status to the list's in-progress status.
 
   ## Step 1: sm finalises the story
   delegate(source: "sm", working_dir: "{{project_dir}}.wt/{{slug}}",
@@ -117,8 +117,8 @@ instructions: |
   {{branch}}. Write the tests in the same commit as the code. Watch each new
   test fail for the right reason: break the code, see it go red, restore it.
   Pair every absence assertion with a presence assertion. Run the gate
-  ({{gate_command}}), then coord__changed_paths(base={{base}},
-  repo={{project_dir}}.wt/{{slug}}), then coord__verify_assertions on the
+  ({{gate_command}}), then agent-harness_coord__changed_paths(base={{base}},
+  repo={{project_dir}}.wt/{{slug}}), then agent-harness_coord__verify_assertions on the
   changed test files. Commit with an imperative subject under 72 characters,
   then push. No PR, no merge, no --no-verify, no force-push. Report the
   status (DONE, DONE_WITH_CONCERNS, BLOCKED or NEEDS_CONTEXT), the branch @
@@ -148,9 +148,9 @@ instructions: |
     `git -C {{project_dir}} rev-parse origin/{{branch}}` equals the worktree's
     HEAD. An unpushed head is not DONE.
   - Run the gate once yourself: `cd {{project_dir}}.wt/{{slug}} && {{gate_command}}`.
-  - If the task id is not "none": clickup__add_comment with what shipped,
+  - If the task id is not "none": agent-harness_clickup__add_comment with what shipped,
     the branch @ sha, the gate output and the mutation evidence. Then call
-    clickup__set_status to the review status, but only if the status is DONE.
+    agent-harness_clickup__set_status to the review status, but only if the status is DONE.
     Otherwise leave the status where it is and comment the concerns.
 
   Status meanings:

@@ -124,7 +124,7 @@ The template uses the format `plugins/mcp_servers.rs` parses: `mcpServers.<name>
 
 Writing `"SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"` would replace the real token with that literal text. The template's `x-harness-env-passthrough` key records the list for install and tests, and goose ignores unknown keys. If goose is launched from the desktop app, these variables must be in *its* environment, or in `HARNESS_ENV_FILE` for the clients that read it.
 
-**Tool names.** goose names a plugin's MCP extension `<plugin>:<server>`, and `name_to_key` turns that key into `agent-harness_clickup`. Tools loaded through this plugin are therefore `agent-harness_clickup__get_task`, not `clickup__get_task`. To get the contract names (`clickup__*`, `slack__*`, `coord__*`), register the servers as ordinary goose extensions named `clickup`, `slack` and `coord`. That can be done in goose config or in a recipe's `extensions:` block.
+**Tool names.** goose names a plugin's MCP extension `<plugin>:<server>`, and `name_to_key` turns that key into `agent-harness_clickup`. Tools loaded through this plugin are therefore `agent-harness_clickup__get_task`, not `clickup__get_task`. The harness personas and recipes use these prefixed names (decided at integration; see `harness/decisions/2026-11-04-s0id-harness-architecture.md`). Registering a server by hand as an ordinary extension named `clickup`, `slack` or `coord` gives the short names instead.
 
 ## Fixed from the vanta-lms hooks
 

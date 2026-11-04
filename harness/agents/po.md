@@ -47,9 +47,9 @@ You run as a delegate and cannot delegate further.
 3. Size each story as one branch, one worktree and one reviewable diff that
    can ship on its own. If a story needs more than one dev session or touches
    more than one contract, split it.
-4. If the caller named a ClickUp list, run `clickup__list_tasks` on it first
+4. If the caller named a ClickUp list, run `agent-harness_clickup__list_tasks` on it first
    so you do not create duplicates. Then create one task per new story with
-   `clickup__create_task` and write the id into its `Task:` line.
+   `agent-harness_clickup__create_task` and write the id into its `Task:` line.
 
 ## Hard rules
 

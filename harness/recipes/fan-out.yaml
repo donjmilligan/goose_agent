@@ -59,17 +59,17 @@ instructions: |
     branch, no Slack post, and no ClickUp comment or status change. Reads are
     fine.
   - **One item, one delegate, one worktree, one branch.** No delegate works
-    in {{project_dir}}. Worktrees come only from coord__worktree_create,
+    in {{project_dir}}. Worktrees come only from agent-harness_coord__worktree_create,
     which places them at {{project_dir}}.wt/<slug>, outside the repo.
   - **No merges and no PRs.** No `--no-verify`, no force-push, and no push to
     the default branch.
-  - **ClickUp:** write a comment with clickup__add_comment first, then change
-    the status with clickup__set_status. The ceiling is the list's review
-    status, read with clickup__list_statuses. Never set done or closed.
+  - **ClickUp:** write a comment with agent-harness_clickup__add_comment first, then change
+    the status with agent-harness_clickup__set_status. The ceiling is the list's review
+    status, read with agent-harness_clickup__list_statuses. Never set done or closed.
   - **Rulings stop work.** A delegate that hits an unruled product or
     architecture question stops on that item and reports NEEDS_CONTEXT, with
     the options and a worked example of each. You bring those options to the
-    human. If the item is a ticket, also post them as a clickup__add_comment.
+    human. If the item is a ticket, also post them as a agent-harness_clickup__add_comment.
     Nobody picks an answer on the human's behalf.
   - **Questions never stop the run.** A blocked item waits while the others
     keep going.
@@ -78,23 +78,23 @@ instructions: |
 
   ## Phase 1: plan (read only)
   1. **Resolve the batch.**
-     - ClickUp ids: run clickup__get_task and clickup__get_comments on each.
+     - ClickUp ids: run agent-harness_clickup__get_task and agent-harness_clickup__get_comments on each.
        Read the status, assignee, description, newest comments and any
        ruling.
-     - `list:<id>`: run clickup__list_tasks, then treat each task as above.
+     - `list:<id>`: run agent-harness_clickup__list_tasks, then treat each task as above.
      - Story files: read each under {{project_dir}}/docs/stories/.
      - A description: split it into independent slices.
      Drop items that are done, in review with no new ask, or in progress
      under someone else.
   2. **Check the claim signals for every item.**
-     - coord__claim_signals(topic=<topic words or id>, repo="{{project_dir}}").
+     - agent-harness_coord__claim_signals(topic=<topic words or id>, repo="{{project_dir}}").
        Its remote branch count is the positive control. A count of zero
        means the check could not see the remote. It does not mean nothing
        matched.
-     - coord__worktree_list(repo="{{project_dir}}") catches unpushed local
+     - agent-harness_coord__worktree_list(repo="{{project_dir}}") catches unpushed local
        work.
      - If the claim channel is not "none", run
-       slack__find_claims(channel="{{claim_channel}}", topic=<topic>). If it
+       agent-harness_slack__find_claims(channel="{{claim_channel}}", topic=<topic>). If it
        is "none", say in the plan that the Slack check was skipped.
      An item with a live claim, a matching branch or a matching worktree
      leaves the batch. Name it, with its owner.
@@ -106,7 +106,7 @@ instructions: |
        the second branches off the first.
      - They never run in parallel.
      - A contract or schema change runs first, and its consumers stack on it.
-  5. **Get a batch id.** Call coord__gen_hash and prefix the result with
+  5. **Get a batch id.** Call agent-harness_coord__gen_hash and prefix the result with
      `fo-`. Never invent an id.
   6. **Present the plan and stop.**
 
@@ -124,21 +124,21 @@ instructions: |
 
   ## Phase 2: claim and dispatch (after approval)
   Do these steps for each item, in this order:
-  1. **Re-check the claims.** Run coord__claim_signals again, plus
-     slack__find_claims if claims are on. Planning takes time. Drop an item
+  1. **Re-check the claims.** Run agent-harness_coord__claim_signals again, plus
+     agent-harness_slack__find_claims if claims are on. Planning takes time. Drop an item
      that was claimed in the meantime, and tell the human.
   2. **Post the claim, if claims are on.** Call
-     slack__post_message(channel="{{claim_channel}}", text=<claim>) and record
+     agent-harness_slack__post_message(channel="{{claim_channel}}", text=<claim>) and record
      the ts it returns. The claim reads:
      `_CLAIM (fan-out <batch-id>, agent <n>/<N>): <item>_ — <one line>. Branch <branch> off {{base}} <sha>. Scope: <files>.`
      Once every item is claimed, post one batch header that lists each item
      and its claim ts.
-  3. **Create the worktree.** Call coord__worktree_create(slug=<slug>,
+  3. **Create the worktree.** Call agent-harness_coord__worktree_create(slug=<slug>,
      branch=<branch>, base=<{{base}} or the branch it stacks on>,
      repo="{{project_dir}}"), and record the path it returns.
   4. **Update the ticket, if the item is one.** Post the item's plan with
-     clickup__add_comment, then set the list's in-progress status with
-     clickup__set_status.
+     agent-harness_clickup__add_comment, then set the list's in-progress status with
+     agent-harness_clickup__set_status.
   5. **Dispatch.** Call delegate(source: "dev", working_dir: <worktree path>,
      instructions: <the brief below>).
      - Put up to the concurrency cap of independent delegate calls in ONE
@@ -165,8 +165,8 @@ instructions: |
         for the right reason: break the code, see it go red, restore it. Pair
         every absence assertion with a presence assertion.
       - Gate: cd <worktree> && {{gate_command}}. Then run
-        coord__changed_paths(base=<base>, repo=<worktree>) and
-        coord__verify_assertions on the changed test files.
+        agent-harness_coord__changed_paths(base=<base>, repo=<worktree>) and
+        agent-harness_coord__verify_assertions on the changed test files.
       - Commit with an imperative subject under 72 characters, then push. No PR,
         no merge, no --no-verify, no force-push.
       - You cannot delegate. Do not claim, comment on ClickUp or post to Slack;
@@ -192,8 +192,8 @@ instructions: |
   4. **Re-run a mutation.** Use one the report names, or one of your own.
      Break the guarded line, run its test and confirm red. Then restore it
      and confirm `git -C <worktree> status --porcelain` is empty.
-  5. **Check the assertions.** Run coord__changed_paths, then
-     coord__verify_assertions on the changed test files.
+  5. **Check the assertions.** Run agent-harness_coord__changed_paths, then
+     agent-harness_coord__verify_assertions on the changed test files.
   6. **Spend a reviewer on large or sensitive diffs.** For more than about
      300 changed lines, or anything touching auth, secrets or personal data,
      use one review delegate. Reviewers are read-only, and each counts
@@ -206,10 +206,10 @@ instructions: |
   - **Verified DONE.**
     - If the item is a ticket: post what shipped against the plan, the
       branch @ sha, the gate output and the mutation evidence with
-      clickup__add_comment. Then move it to the review status with
-      clickup__set_status.
+      agent-harness_clickup__add_comment. Then move it to the review status with
+      agent-harness_clickup__set_status.
     - If claims are on: send `_COMPLETION: <item>_ — <branch> @ <sha>,
-      <evidence>` with slack__reply on the claim's ts.
+      <evidence>` with agent-harness_slack__reply on the claim's ts.
   - **Verification failed, or DONE_WITH_CONCERNS.** Comment the concerns and
     leave the status unchanged. Resume that delegate once with the specific
     defect, using delegate(resume: "<subagent id>", instructions: "<defect
@@ -226,7 +226,7 @@ instructions: |
     unblocked items, then dispatch them. Never exceed the cap.
   - A dependent item starts only after its dependency is verified DONE.
   - Report work you discover during the run to the human; don't start it.
-    With their yes, file it with clickup__create_task, which will need its
+    With their yes, file it with agent-harness_clickup__create_task, which will need its
     own claim later.
   - Pause the run, rather than finishing it, if {{base}} is broken or CI is
     down. Say why.
@@ -238,7 +238,7 @@ instructions: |
     one line, and what needs the human.
   - Give the merge order (contract changes first, then stacks bottom-up),
     and list any gates that could not run, with why.
-  - If claims are on, send one batch completion with slack__reply on the
+  - If claims are on, send one batch completion with agent-harness_slack__reply on the
     batch header's ts.
   - Leave every worktree in place. They are removed only after their
     branches merge, by a human.

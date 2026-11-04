@@ -68,13 +68,13 @@ instructions: |
   ## Step 3: ClickUp, only when a list is given
   If the list is "none", skip this step and say so.
   Otherwise:
-  1. Dedup first. Read the list with clickup__list_tasks(list_id="{{clickup_list}}")
+  1. Dedup first. Read the list with agent-harness_clickup__list_tasks(list_id="{{clickup_list}}")
      and match each story against the existing task names and descriptions.
   2. Show a table and stop: story file | matched task or NONE | proposed
      action (create, or comment on the match) | why.
   3. Only after the human approves, create the approved tasks with
-     clickup__create_task, or comment on the matches with
-     clickup__add_comment. Each task description links the story file.
+     agent-harness_clickup__create_task, or comment on the matches with
+     agent-harness_clickup__add_comment. Each task description links the story file.
      New tasks stay in the list's default status.
 
   ## Report

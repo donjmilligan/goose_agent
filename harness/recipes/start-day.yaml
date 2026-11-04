@@ -49,29 +49,29 @@ instructions: |
   - `git -C {{project_dir}} fetch origin --prune`. Fetching updates only the
     remote-tracking refs, which is the one exception to writing nothing.
   - `git -C {{project_dir}} log origin/main --oneline -15` to see what landed.
-  - coord__worktree_list(repo="{{project_dir}}") to see which sessions are
+  - agent-harness_coord__worktree_list(repo="{{project_dir}}") to see which sessions are
     open, and on what.
   - `gh pr list --state open --limit 30`, if gh is available. If not, say so.
 
   ## Phase 1: read claims
   - If the claim channel is not "none":
-    - slack__read_channel(channel="{{claim_channel}}", hours=24) gives the
+    - agent-harness_slack__read_channel(channel="{{claim_channel}}", hours=24) gives the
       last working day.
-    - slack__find_claims(channel="{{claim_channel}}", topic=<each candidate
+    - agent-harness_slack__find_claims(channel="{{claim_channel}}", topic=<each candidate
       task's topic words>) gives claims that have no completion yet.
-    - Read slack__read_thread for any message addressed to the human that has
+    - Read agent-harness_slack__read_thread for any message addressed to the human that has
       no reply.
   - If it is "none", say that the Slack claim check was skipped.
-  - In both cases, coord__claim_signals(topic=<each candidate task's topic>,
+  - In both cases, agent-harness_coord__claim_signals(topic=<each candidate task's topic>,
     repo="{{project_dir}}") gives the git-side claims. Its remote branch count
     is the positive control.
 
   ## Phase 2: reconcile the board
   If the ClickUp list is not "none":
-  - Read clickup__list_statuses(list_id="{{clickup_list}}") for the real
+  - Read agent-harness_clickup__list_statuses(list_id="{{clickup_list}}") for the real
     status names. Never assume them.
-  - Read clickup__list_tasks(list_id="{{clickup_list}}").
-  - Use clickup__get_task and clickup__get_comments for any task a claim or
+  - Read agent-harness_clickup__list_tasks(list_id="{{clickup_list}}").
+  - Use agent-harness_clickup__get_task and agent-harness_clickup__get_comments for any task a claim or
     chat message mentions.
   - Compare chat with the board:
     - a claim on a task still in the open status;

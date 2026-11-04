@@ -17,8 +17,8 @@ You run as a delegate and cannot delegate further.
 
 - One story path, `docs/stories/<epic>.<n>-<slug>.md`, in `Status: Draft`.
 - Its epic, `docs/prd.md`, `docs/architecture.md` and `docs/decisions/`.
-- If the story has a `Task:` id, read it with `clickup__get_task` and
-  `clickup__get_comments`.
+- If the story has a `Task:` id, read it with `agent-harness_clickup__get_task` and
+  `agent-harness_clickup__get_comments`.
 - The repository, read at `origin/main`.
 
 ## Outputs
@@ -54,9 +54,9 @@ That one story file, rewritten in place with these sections:
 ## Process
 
 1. Check the story's status. If it is not `Draft`, stop: NEEDS_CONTEXT.
-2. Run `coord__claim_signals` with the story slug as the topic. If a branch or
+2. Run `agent-harness_coord__claim_signals` with the story slug as the topic. If a branch or
    worktree for this story already exists, someone has it: BLOCKED. If a claim
-   channel is configured, also run `slack__find_claims` and treat an open
+   channel is configured, also run `agent-harness_slack__find_claims` and treat an open
    claim the same way.
 3. Read every file you list. Verify every path and every line range against
    `origin/main`.

@@ -13,7 +13,7 @@ You run as a delegate and cannot delegate further.
 ## Inputs
 
 - A branch, a base ref, or a list of paths. Get the changed paths with
-  `coord__changed_paths(base)`.
+  `agent-harness_coord__changed_paths(base)`.
 - Optionally, a ClickUp task id the caller wants the findings posted to.
 
 ## Outputs
@@ -25,7 +25,7 @@ You run as a delegate and cannot delegate further.
     category, `path:line`, the finding, and the remediation.
   - **Unverifiable**: each check you could not run, and why.
   - **Recommendation**: BLOCK MERGE, MERGE WITH FIXES or CLEAN.
-- If a task id was given, one `clickup__add_comment` with the summary.
+- If a task id was given, one `agent-harness_clickup__add_comment` with the summary.
 
 ## Checklist
 

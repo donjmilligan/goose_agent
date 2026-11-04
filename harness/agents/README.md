@@ -21,7 +21,7 @@ BMAD chain:
   requirements and a first cut of epics.
 - **architect**: PRD -> `docs/architecture.md`, plus
   `docs/decisions/YYYY-MM-DD-<hash>-<slug>.md`. The hash comes from
-  `coord__gen_hash`. Rulings are written as PROPOSED, with the options laid
+  `agent-harness_coord__gen_hash`. Rulings are written as PROPOSED, with the options laid
   out.
 - **po**: checks that the PRD and the architecture agree, then shards them
   into `docs/epics/<n>-<slug>.md` and `docs/stories/<epic>.<n>-<slug>.md`
@@ -29,12 +29,12 @@ BMAD chain:
 - **sm**: takes ONE Draft story to Ready. That means adding context files,
   contracts, ACs, a test plan with the mutation for each test, gates, an
   out-of-scope list and stop conditions.
-- **dev**: builds ONE Ready story in its own worktree (`coord__worktree_create`).
+- **dev**: builds ONE Ready story in its own worktree (`agent-harness_coord__worktree_create`).
   Tests go in the same commit, and the dev mutation-checks them, runs the
   gates and pushes the branch. The story ends in Review. There is no PR and
   no merge.
 - **qa**: adversarial review of the story branch. QA re-runs a mutation, runs
-  `coord__verify_assertions`, checks every AC, and gives a PASS, CONCERNS or
+  `agent-harness_coord__verify_assertions`, checks every AC, and gives a PASS, CONCERNS or
   FAIL verdict. QA never fixes anything.
 
 Specialists, which you can run at any point:
