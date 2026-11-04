@@ -1,0 +1,125 @@
+version: 1.0.0
+title: Start of day
+description: >-
+  Gets you oriented: what landed, which claims are live, what the board says
+  and what is waiting on you. Recommends exactly one task, and writes nothing.
+
+parameters:
+  - key: project_dir
+    input_type: string
+    requirement: required
+    description: Absolute path of the repository's primary checkout.
+  - key: claim_channel
+    input_type: string
+    requirement: optional
+    default: none
+    description: Slack channel id where claims and completions are posted, or "none" to skip Slack.
+  - key: clickup_list
+    input_type: string
+    requirement: optional
+    default: none
+    description: ClickUp list id to reconcile against, or "none" to skip ClickUp.
+  - key: focus
+    input_type: string
+    requirement: optional
+    default: any
+    description: Optional area to bias the recommendation toward, e.g. "backend".
+
+instructions: |
+  You open a working session. You answer three questions in order. What
+  happened while I was away? What does the board say now? What should I
+  touch first?
+
+  - Repository: {{project_dir}}
+  - Claim channel: {{claim_channel}} ("none" means Slack is skipped)
+  - ClickUp list: {{clickup_list}} ("none" means ClickUp is skipped)
+  - Focus: {{focus}}
+
+  ## Hard limits
+  - **Write nothing.** That means no Slack post or reply, no ClickUp comment,
+    task or status change, and no branch, worktree, commit or file. You may
+    draft replies and propose board changes, but you show them and stop.
+  - **Do not claim work.** Recommending is not claiming. The human claims
+    when they choose the task.
+  - **Do not start the task you recommend.**
+  - A missing channel, an empty list or an unreachable API is a finding, not
+    a crash. Report it, carry on with what you have, and name what is missing.
+
+  ## Phase 0: orient
+  - `git -C {{project_dir}} fetch origin --prune`. Fetching updates only the
+    remote-tracking refs, which is the one exception to writing nothing.
+  - `git -C {{project_dir}} log origin/main --oneline -15` to see what landed.
+  - coord__worktree_list(repo="{{project_dir}}") to see which sessions are
+    open, and on what.
+  - `gh pr list --state open --limit 30`, if gh is available. If not, say so.
+
+  ## Phase 1: read claims
+  - If the claim channel is not "none":
+    - slack__read_channel(channel="{{claim_channel}}", hours=24) gives the
+      last working day.
+    - slack__find_claims(channel="{{claim_channel}}", topic=<each candidate
+      task's topic words>) gives claims that have no completion yet.
+    - Read slack__read_thread for any message addressed to the human that has
+      no reply.
+  - If it is "none", say that the Slack claim check was skipped.
+  - In both cases, coord__claim_signals(topic=<each candidate task's topic>,
+    repo="{{project_dir}}") gives the git-side claims. Its remote branch count
+    is the positive control.
+
+  ## Phase 2: reconcile the board
+  If the ClickUp list is not "none":
+  - Read clickup__list_statuses(list_id="{{clickup_list}}") for the real
+    status names. Never assume them.
+  - Read clickup__list_tasks(list_id="{{clickup_list}}").
+  - Use clickup__get_task and clickup__get_comments for any task a claim or
+    chat message mentions.
+  - Compare chat with the board:
+    - a claim on a task still in the open status;
+    - a completion whose task is not in review;
+    - a branch with no task.
+  - Propose the changes. Do not make them.
+
+  ## Phase 3: show, then stop
+  **ClickUp changes proposed**
+
+  | Task | Status | Proposed action | Why (message ts or task id) |
+  |---|---|---|---|
+
+  **Slack replies drafted**
+
+  | Thread | Who is waiting | Draft |
+  |---|---|---|
+
+  ## Phase 4: recommend one task
+  Give one recommendation, not a menu. Rank candidates by these criteria, in
+  order:
+  1. Unblocks someone else.
+  2. Is a live production or security problem. Verify it against
+     origin/main before believing it.
+  3. Is the oldest in-flight work in the focus area.
+
+  State in one line each:
+  - what to take;
+  - why it beats the alternatives;
+  - what is already claimed by someone else, so you don't collide.
+
+  If the best next action is blocked on a human, say so plainly, and name the
+  human and the question.
+
+  ## Output
+  ```
+  ## Start of day — <date>
+  Landed: <merged commits, newly open PRs>
+  Claimed right now by other sessions: <item → who>. Avoid these.
+  Waiting on you: <messages needing a reply, decisions>
+  Board deltas proposed: <n> comments, <n> status changes, <n> flagged.
+  Start here: <one task>. <why, in one line>.
+    Branch suggestion: <type>/<slug>. Claim it first, then use bmad-story or fan-out.
+  Blocked on a human: <question → who>, or "nothing".
+  ```
+
+  Remind the human that new worktrees come from the coord extension (which
+  bmad-story and fan-out call), because it keeps them outside the repo. To update a branch, use
+  `git rebase origin/main`, never `git merge main`.
+
+prompt: Start my day. Orient, read the claims, reconcile the board, and recommend one task. Do not write anything.

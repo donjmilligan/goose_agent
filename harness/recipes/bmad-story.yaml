@@ -1,0 +1,229 @@
+version: 1.0.0
+title: BMAD story (SM, dev, QA)
+description: >-
+  Builds one story end to end. The sm persona finalises the story file, dev
+  builds it in its own worktree from coord__worktree_create, and qa reviews.
+  Retry checks re-run the project gate and harness-coord verify-assertions,
+  and the result follows the completion protocol.
+
+parameters:
+  - key: story_path
+    input_type: string
+    requirement: required
+    description: Story file path relative to the repository root, e.g. docs/stories/1.2-login.md.
+  - key: gate_command
+    input_type: string
+    requirement: required
+    description: The project's gate, run from the worktree root, e.g. "uv run pytest -q && uv run ruff check .".
+  - key: project_dir
+    input_type: string
+    requirement: required
+    description: Absolute path of the repository's primary checkout, with no trailing slash. It is never written.
+  - key: slug
+    input_type: string
+    requirement: required
+    description: Worktree slug. The worktree is created at <project_dir>.wt/<slug>.
+  - key: branch
+    input_type: string
+    requirement: required
+    description: New branch name for this story, e.g. feature/login.
+  - key: base
+    input_type: string
+    requirement: optional
+    default: origin/main
+    description: Base ref the branch is cut from.
+  - key: harness_coord
+    input_type: string
+    requirement: optional
+    default: harness-coord
+    description: >-
+      Command that runs the coord CLI, used by the retry checks. Use e.g.
+      "uv run --project /path/to/harness/coord harness-coord" if it is not on PATH.
+  - key: task_id
+    input_type: string
+    requirement: optional
+    default: none
+    description: ClickUp task id for this story, or "none" to skip ClickUp.
+
+instructions: |
+  You orchestrate one story through three persona delegates: sm, then dev,
+  then qa. You check each hand-off yourself and finish with the completion
+  protocol.
+
+  - Story: {{story_path}}
+  - Repository (primary checkout, never written): {{project_dir}}
+  - Worktree: {{project_dir}}.wt/{{slug}} on branch {{branch}}, from {{base}}
+  - Gate, run from the worktree root: `{{gate_command}}`
+  - ClickUp task: {{task_id}} ("none" means ClickUp is skipped)
+
+  ## Rules
+  - Nothing is written in {{project_dir}}. All work happens in the worktree.
+  - No merge, no PR, no `--no-verify`, no force-push, no push to the default
+    branch.
+  - Delegates cannot delegate further, and they know only what you pass
+    them. Every brief names the absolute worktree path.
+  - ClickUp writes use clickup__add_comment first, then clickup__set_status.
+    The ceiling is the list's review status, read with
+    clickup__list_statuses. Never set done or closed.
+  - Rulings stop work. If the story needs a product or architecture decision
+    that no document records, stop with NEEDS_CONTEXT. List the options with
+    a worked example of each. Do not pick one.
+  - This recipe can be restarted by its retry checks, from the beginning,
+    with this conversation reset. Every step must be safe to repeat. Reuse
+    what an earlier attempt left behind rather than recreating it.
+
+  ## Step 0: worktree
+  1. coord__worktree_list(repo="{{project_dir}}"). If a worktree at
+     {{project_dir}}.wt/{{slug}} on {{branch}} already exists, this is a
+     retry: reuse it, and read `git -C {{project_dir}}.wt/{{slug}} log
+     --oneline {{base}}..HEAD` to see what the last attempt did.
+  2. Otherwise coord__claim_signals(topic="{{slug}}", repo="{{project_dir}}").
+     If another branch or worktree matches this story, stop with BLOCKED and
+     name it.
+  3. Otherwise coord__worktree_create(slug="{{slug}}", branch="{{branch}}",
+     base="{{base}}", repo="{{project_dir}}").
+  4. The path it returns must equal {{project_dir}}.wt/{{slug}}, because the
+     retry checks hard-code that path. If it differs, stop with BLOCKED and
+     report both paths.
+  5. If the task id is not "none": clickup__get_task, then clickup__add_comment
+     with the plan, then clickup__set_status to the list's in-progress status.
+
+  ## Step 1: sm finalises the story
+  delegate(source: "sm", working_dir: "{{project_dir}}.wt/{{slug}}",
+  instructions: "Finalise the story at {{project_dir}}.wt/{{slug}}/{{story_path}}
+  so a developer with no other context can build it. It must state the files
+  to touch, the contracts it reads or changes, acceptance criteria, a test
+  plan that names the tests to write, and the gate: {{gate_command}}. Read the
+  PRD and architecture under docs/ in the worktree for context. Edit only that
+  story file, and commit it on {{branch}} with git -C
+  {{project_dir}}.wt/{{slug}}. If the story needs a decision no document
+  records, report NEEDS_CONTEXT with the options instead of choosing.")
+
+  goose rejects a working_dir outside this session's directory. Run this
+  recipe from a directory that contains both {{project_dir}} and
+  {{project_dir}}.wt, which is usually their parent. If the call fails with
+  "outside the parent session directory", call it again without working_dir.
+  The brief's absolute paths then keep the work in the worktree.
+
+  Check the story file for files, acceptance criteria, a test plan and the
+  gate. Stop here on NEEDS_CONTEXT or BLOCKED.
+
+  ## Step 2: dev builds
+  delegate(source: "dev", working_dir: "{{project_dir}}.wt/{{slug}}",
+  instructions: "Build the story at {{project_dir}}.wt/{{slug}}/{{story_path}}.
+  Work only in {{project_dir}}.wt/{{slug}}. Every shell command starts with cd
+  {{project_dir}}.wt/{{slug}} && or uses git -C {{project_dir}}.wt/{{slug}}.
+  Touch only the files the story lists. Push early with git push -u origin
+  {{branch}}. Write the tests in the same commit as the code. Watch each new
+  test fail for the right reason: break the code, see it go red, restore it.
+  Pair every absence assertion with a presence assertion. Run the gate
+  ({{gate_command}}), then coord__changed_paths(base={{base}},
+  repo={{project_dir}}.wt/{{slug}}), then coord__verify_assertions on the
+  changed test files. Commit with an imperative subject under 72 characters,
+  then push. No PR, no merge, no --no-verify, no force-push. Report the
+  status (DONE, DONE_WITH_CONCERNS, BLOCKED or NEEDS_CONTEXT), the branch @
+  sha, the commits, the gate output, the mutation evidence (what you broke,
+  the red output, the restore) and the verify-assertions result.")
+
+  ## Step 3: qa reviews
+  delegate(source: "qa", working_dir: "{{project_dir}}.wt/{{slug}}",
+  instructions: "Review branch {{branch}} in {{project_dir}}.wt/{{slug}}
+  against the story at {{story_path}}. This is read-only: do not edit or
+  commit. Read git -C {{project_dir}}.wt/{{slug}} diff {{base}}...HEAD. For
+  each acceptance criterion, name the test that proves it or say none does.
+  Re-run the gate yourself ({{gate_command}}). Re-run one mutation: break one
+  guarded line, run its test, confirm red, restore it, and confirm git status
+  is clean. Flag any test that asserts only an absence with nothing proving
+  the code ran. Return PASS or FAIL with the defects as file:line and the
+  evidence.")
+
+  If qa returns FAIL, give dev one fix round: delegate(resume: "<dev subagent
+  id>", instructions: "<qa's defects, verbatim>"). Then run qa again with a
+  fresh delegate(source: "qa", ...) call. Stop after that one round. A second
+  FAIL is DONE_WITH_CONCERNS or BLOCKED, never DONE.
+
+  ## Step 4: verify, then report
+  You verify before you report. Do not take the delegates' word for it.
+  - `git -C {{project_dir}} fetch origin`, then confirm
+    `git -C {{project_dir}} rev-parse origin/{{branch}}` equals the worktree's
+    HEAD. An unpushed head is not DONE.
+  - Run the gate once yourself: `cd {{project_dir}}.wt/{{slug}} && {{gate_command}}`.
+  - If the task id is not "none": clickup__add_comment with what shipped,
+    the branch @ sha, the gate output and the mutation evidence. Then call
+    clickup__set_status to the review status, but only if the status is DONE.
+    Otherwise leave the status where it is and comment the concerns.
+
+  Status meanings:
+  - DONE: the gate is green, qa passed, and the branch is pushed at sha.
+  - DONE_WITH_CONCERNS: the gate is green and pushed, but qa raised something
+    that is not fixed, or a check could not run. Say which.
+  - BLOCKED: the gate is red, a claim collided, or the worktree is wrong.
+  - NEEDS_CONTEXT: an unruled decision. List the questions.
+
+prompt: Build the story above through sm, dev and qa, then report with the completion protocol.
+
+response:
+  json_schema:
+    type: object
+    required:
+      - status
+      - branch
+      - sha
+      - evidence
+    properties:
+      status:
+        type: string
+        enum:
+          - DONE
+          - DONE_WITH_CONCERNS
+          - BLOCKED
+          - NEEDS_CONTEXT
+      branch:
+        type: string
+        description: The story branch.
+      sha:
+        type: string
+        description: Full commit sha pushed to origin, or "none" if nothing was pushed.
+      worktree:
+        type: string
+        description: Absolute worktree path.
+      evidence:
+        type: object
+        required:
+          - gate
+          - mutation
+          - verify_assertions
+          - qa
+        properties:
+          gate:
+            type: string
+            description: The gate command and the tail of its output.
+          mutation:
+            type: string
+            description: What was broken, the red output, and the restore.
+          verify_assertions:
+            type: string
+            description: The coord verify-assertions result on the changed test files.
+          qa:
+            type: string
+            description: The qa verdict, PASS or FAIL, with defects.
+      concerns:
+        type: array
+        items:
+          type: string
+      questions:
+        type: array
+        description: Open questions for NEEDS_CONTEXT or BLOCKED, each with options and a recommendation.
+        items:
+          type: string
+
+retry:
+  max_retries: 2
+  timeout_seconds: 1800
+  checks:
+    - type: shell
+      command: |-
+        cd "{{project_dir}}.wt/{{slug}}" && {{gate_command}}
+    - type: shell
+      command: |-
+        cd "{{project_dir}}.wt/{{slug}}" && files=$(git diff --name-only --diff-filter=AM "{{base}}...HEAD" | grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$' || true); if [ -z "$files" ]; then echo "verify-assertions: no changed Python test files"; else {{harness_coord}} verify-assertions $files; fi

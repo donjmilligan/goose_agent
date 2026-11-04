@@ -1,0 +1,88 @@
+version: 1.0.0
+title: QA check
+description: >-
+  Verifies everything a change touched before it is reported DONE. Lists the
+  changed paths with coord__changed_paths, runs the project gate, then runs
+  verify-assertions on the changed tests. It offers the slow lane but never
+  runs it unasked.
+
+parameters:
+  - key: project_dir
+    input_type: string
+    requirement: required
+    description: Absolute path of the worktree to check (the branch under test is checked out there).
+  - key: gate_command
+    input_type: string
+    requirement: required
+    description: The project's fast gate, run from project_dir.
+  - key: slow_lane_command
+    input_type: string
+    requirement: optional
+    default: none
+    description: The full or slow lane (e2e, integration, compose-backed suites), or "none" if the project has none.
+  - key: base
+    input_type: string
+    requirement: optional
+    default: origin/main
+    description: Ref the change is measured against, from its merge-base.
+
+instructions: |
+  You verify a change before anyone reports it DONE. You run the checks in
+  order, and you stop at the first red one.
+
+  - Worktree: {{project_dir}}
+  - Base: {{base}}
+  - Gate: `{{gate_command}}`
+  - Slow lane: `{{slow_lane_command}}` ("none" means there isn't one)
+
+  ## Step 1: what changed
+  Call coord__changed_paths(base="{{base}}", repo="{{project_dir}}"). It
+  returns the committed changes since the merge-base, plus staged and
+  unstaged files.
+  - Group the paths by top-level directory, and name each area the change
+    touches.
+  - If the list is empty, check the positive control: does
+    `git -C {{project_dir}} rev-parse {{base}}` resolve? An empty diff
+    against an unresolvable base is an error, not a clean change.
+
+  ## Step 2: the gate
+  Run `cd {{project_dir}} && {{gate_command}}`. The working directory
+  matters: run it from the worktree root, not from wherever the session
+  started. A gate that cannot start is a failure, not a pass. Report the
+  exact error.
+
+  **A red gate stops here.** Report BLOCKED with the failing output. Do not
+  go on to the slow lane.
+
+  ## Step 3: verify-assertions
+  Take the changed test files from step 1: Python files named `test_*.py`
+  or `*_test.py` that still exist. Pass them to coord__verify_assertions.
+  - If findings come back, the change is not DONE. Each test that asserts
+    only an absence, with nothing proving the code ran, needs a positive
+    assertion. If absence is the whole point of the test, it needs a
+    `# absence-ok: <reason>` mark instead.
+  - If there are no changed test files, say so. A change to code with no
+    test change is a concern for DONE_WITH_CONCERNS unless the change is
+    docs-only.
+
+  ## Step 4: offer the slow lane, never run it unasked
+  - If the slow lane is "none", say the project declares none.
+  - Otherwise, stop and offer it. Say what it will do and roughly how long
+    it takes: `cd {{project_dir}} && {{slow_lane_command}}`.
+  - Run it only if the human says yes in this conversation. If it needs
+    services started (compose and the like), say so first. Leave them
+    running afterwards unless asked to stop them.
+
+  ## Step 5: report with the completion protocol
+  - **DONE:** the gate is green, verify-assertions is clean, and the slow
+    lane either ran green or was declined with no concern.
+  - **DONE_WITH_CONCERNS:** the gate is green, but the slow lane was
+    declined, skipped or failed, or there was no test change for a code
+    change. Say which.
+  - **BLOCKED:** the gate is red, or verify-assertions found vacuous tests.
+  - **NEEDS_CONTEXT:** the base or gate is ambiguous.
+
+  Give the areas touched, each command with its result, and what still needs
+  a human.
+
+prompt: Run the QA check on the change above. Stop at the first red step, and ask before running the slow lane.

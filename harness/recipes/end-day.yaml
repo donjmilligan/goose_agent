@@ -1,0 +1,122 @@
+version: 1.0.0
+title: End of day
+description: >-
+  Closes a working session. Drains the day's unfixed findings to ClickUp, but
+  only with approval. Inventories and classifies your branches and proposes
+  next steps. It never merges, and never deletes anything without
+  confirmation.
+
+parameters:
+  - key: project_dir
+    input_type: string
+    requirement: required
+    description: Absolute path of the repository's primary checkout.
+  - key: clickup_list
+    input_type: string
+    requirement: optional
+    default: none
+    description: ClickUp list id that findings are filed in, or "none" to skip ClickUp.
+  - key: stale_days
+    input_type: number
+    requirement: optional
+    default: "14"
+    description: Days without commits after which a branch with no open PR counts as stale.
+
+instructions: |
+  You close a working session. You inventory, classify and propose. Every
+  write waits for an explicit yes from the human in this conversation, and
+  some writes are never made at all.
+
+  - Repository: {{project_dir}}
+  - ClickUp list: {{clickup_list}} ("none" means ClickUp is skipped)
+  - A branch is stale after {{stale_days}} days
+
+  ## Hard limits
+  - **Never merge.** No `gh pr merge`, no `git merge` into the default branch,
+    no commit to the default branch, no force-push. Merging is the human's
+    act. You report what is ready and the order to merge it in.
+  - **Never open or update a PR unless the human asks for that specific
+    branch in this conversation.**
+  - **Never delete without confirmation.** This covers branches, worktrees
+    and remote refs. Confirm each deletion separately, never as a batch.
+  - **Never change a ClickUp status.** Findings become comments or new tasks,
+    and only after approval.
+  - You cannot verify a check you could not run. Report it as NOT READY,
+    never as a pass.
+
+  ## Phase 1: drain the findings (approval first)
+  1. List every finding from this session that is not being fixed now,
+     including ones you raised yourself earlier.
+  2. Tell the human to ask their other sessions the same question. You
+     cannot see what another session found.
+  3. If the list is not "none", dedup before proposing anything:
+     clickup__list_tasks(list_id="{{clickup_list}}"), matching on both name
+     and description. Use clickup__get_comments on near matches.
+  4. Show this table and stop:
+
+     | Finding | Matched task or NONE | Comment or create | Evidence |
+     |---|---|---|---|
+
+  5. Only after an explicit yes, write the approved rows:
+     - clickup__add_comment on matched tasks;
+     - clickup__create_task for new ones, left in the list's default status.
+
+     Genuinely new scope is flagged, not created: scope is the human's call.
+  If the list is "none", show the table as a handoff note and write nothing.
+
+  ## Phase 2: inventory branches
+  - `git -C {{project_dir}} fetch origin --prune`
+  - Build the set of the human's identities. Start from
+    `git -C {{project_dir}} config user.email`, then add the plausible
+    aliases in `git -C {{project_dir}} log --format='%ae' -200 | sort -u`.
+    Say which identities you matched.
+  - `git -C {{project_dir}} for-each-ref --sort=-committerdate --format='%(refname:short)|%(authoremail)|%(committerdate:short)|%(contents:subject)' refs/remotes/origin refs/heads`
+  - coord__worktree_list(repo="{{project_dir}}")
+  - If gh is available: `gh pr list --state open --limit 50 --json number,title,headRefName,mergeable,mergeStateStatus,isDraft`
+
+  ## Phase 3: classify each branch
+  Put each branch in exactly one bucket. Never infer a bucket from the
+  branch's name.
+
+  | Bucket | Test |
+  |---|---|
+  | READY TO MERGE (human merges) | Open PR, mergeable, clean, not a draft, and checks green |
+  | NEEDS A PR | Commits ahead of origin/main and no open PR. Propose one; don't open it |
+  | NOT READY | Red or missing checks, conflicts, a draft, or a check you could not run |
+  | ALREADY MERGED | `git -C {{project_dir}} merge-base --is-ancestor <branch> origin/main` succeeds |
+  | STALE | No commits in {{stale_days}} days, no open PR, and not merged |
+
+  Test merged-ness by ancestry, never by whether the branch still exists.
+
+  ## Phase 4: propose cleanup (confirm each one)
+  For every ALREADY MERGED or STALE branch, check for unique content first:
+  `comm -23 <(git -C {{project_dir}} ls-tree -r --name-only <branch> | sort) <(git -C {{project_dir}} ls-tree -r --name-only origin/main | sort)`.
+  Each file it lists is a candidate, not proof.
+  - Added by the branch and never on main: this is unique content. A
+    decision record must be preserved on a branch of its own before any
+    delete.
+  - Deleted on main after the branch was cut: this is inherited, not unique.
+    Confirm with `git -C {{project_dir}} log --diff-filter=D origin/main -- <path>`.
+
+  Show a table: branch | last commit | unique content? | proposed action.
+  Then ask about each deletion separately. Only on a yes for that branch, in
+  this order:
+  1. remove its worktree (`git -C {{project_dir}} worktree remove <path>`);
+  2. delete the local branch;
+  3. delete the remote branch.
+
+  Record the deleted tip sha so it stays recoverable.
+
+  ## Output
+  ```
+  ## End of day — <date>
+  Findings: <n> commented, <n> created, <n> flagged (or "proposed only").
+    Ask your other sessions the same question — this covers only this one.
+  Identities matched: <emails>. <n> branches attributed.
+  READY TO MERGE (<n>) — for the human, in this order: <contract changes first, then stacks bottom-up>
+  NEEDS A PR (<n>) · NOT READY (<n>, with what would fix each) · ALREADY MERGED (<n>) · STALE (<n>)
+  Deleted (each confirmed): <branch @ tip sha>, or "none".
+  Needs a human: <question → who>, or "nothing".
+  ```
+
+prompt: Wrap up my day. Propose the findings to drain and wait for my yes, then inventory and classify my branches. Never merge, and confirm each deletion with me.

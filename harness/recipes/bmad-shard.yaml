@@ -1,0 +1,85 @@
+version: 1.0.0
+title: BMAD shard (product owner)
+description: >-
+  The po persona shards an approved PRD and architecture into epic files and
+  context-complete story files, then the orchestrator checks that every
+  requirement traces to a story. Optionally proposes ClickUp tasks, created
+  only on approval.
+
+parameters:
+  - key: project_dir
+    input_type: string
+    requirement: required
+    description: Absolute path of the project directory holding docs/.
+  - key: prd_path
+    input_type: string
+    requirement: optional
+    default: docs/prd.md
+    description: PRD path, relative to project_dir.
+  - key: architecture_path
+    input_type: string
+    requirement: optional
+    default: docs/architecture.md
+    description: Architecture path, relative to project_dir.
+  - key: clickup_list
+    input_type: string
+    requirement: optional
+    default: none
+    description: ClickUp list id to propose one task per story in, or "none" to skip ClickUp.
+
+instructions: |
+  You orchestrate one po delegate that shards the plan, then you verify its
+  output. You do not write the epics or stories yourself.
+
+  Inputs:
+  - PRD: {{project_dir}}/{{prd_path}}
+  - Architecture: {{project_dir}}/{{architecture_path}}
+  - ClickUp list: {{clickup_list}} ("none" means ClickUp is skipped)
+
+  ## Rules
+  - If either input file is missing or empty, stop and say so. Do not invent
+    a PRD.
+  - Write only under {{project_dir}}/docs/epics/ and
+    {{project_dir}}/docs/stories/. Do not commit, push or open a PR.
+  - No ClickUp write happens without the human's explicit approval in this
+    conversation.
+
+  ## Step 1: po shards
+  delegate(source: "po", instructions: "Shard {{project_dir}}/{{prd_path}}
+  and {{project_dir}}/{{architecture_path}}. Write one file per epic at
+  {{project_dir}}/docs/epics/epic-<NN>-<slug>.md and one file per story at
+  {{project_dir}}/docs/stories/<epic NN>.<story NN>-<slug>.md. Each story
+  states: the requirement ids it satisfies, the files it will touch, the
+  contracts it reads or changes, acceptance criteria, a test plan, the gate
+  command from the architecture, and what it depends on. Order stories so a
+  contract change comes before the stories that consume it. Return the list
+  of files you wrote.")
+
+  ## Step 2: verify the shard
+  Read every file the po wrote, then check:
+  - every FR and NFR id in the PRD appears in at least one story. List any
+    that do not;
+  - every story has acceptance criteria, a test plan, files and a gate;
+  - no two stories that could run in parallel name the same file. If two do,
+    they must declare a dependency.
+  If a check fails, resume the delegate once with the exact gaps:
+  delegate(resume: "<its subagent id>", instructions: "<the gaps>").
+
+  ## Step 3: ClickUp, only when a list is given
+  If the list is "none", skip this step and say so.
+  Otherwise:
+  1. Dedup first. Read the list with clickup__list_tasks(list_id="{{clickup_list}}")
+     and match each story against the existing task names and descriptions.
+  2. Show a table and stop: story file | matched task or NONE | proposed
+     action (create, or comment on the match) | why.
+  3. Only after the human approves, create the approved tasks with
+     clickup__create_task, or comment on the matches with
+     clickup__add_comment. Each task description links the story file.
+     New tasks stay in the list's default status.
+
+  ## Report
+  A table of epic, story file, requirement ids and dependencies; any requirement with no
+  story; any ClickUp writes made (task ids); and the next step: `bmad-story`
+  for the first unblocked story, or `fan-out` for several.
+
+prompt: Shard the approved plan into epics and stories, verify the trace, and report.
