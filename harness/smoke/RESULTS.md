@@ -285,8 +285,10 @@ These answers come from the measurements above only.
 
 ## Defects found outside `harness/smoke`
 
-I didn't fix any of these. Each has the location, what I observed against
-what I expected, and the evidence. Unless a defect names a run, its log
+I didn't fix any of these during the smoke. The harness ones (D3's recipe
+side, D8 to D12) were fixed afterwards; each says so in its **Status** line.
+Each has the location, what I observed against what I expected, and the
+evidence. Unless a defect names a run, its log
 paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
 
 **D1 · goose (Rust): the `final_output` nudge names the wrong tool**
@@ -315,6 +317,7 @@ paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
   alternate between the nudge and thinking-only assistant turns.
 
 **D3 · harness recipes and goose: delegates are not bounded by `--max-turns`**
+- **Status:** harness side fixed on `fix/harness-smoke-defects` (`e19981342`). Every `delegate(source: ...)` in the recipes passes `max_turns` (dev and po 60, analyst, pm and architect 40, sm and reviewers 30), and the recipe validator rejects a call without one. The goose side (`--max-turns` not reaching delegates) is unchanged.
 - **Location:** `summon.rs:1433-1438`. A delegate's turn limit comes from
   `params.max_turns`, then `GOOSE_SUBAGENT_MAX_TURNS`, then
   `default_max_turns()`, which is 1000 (`config/base.rs:1339-1341`).
@@ -371,6 +374,7 @@ paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
 - **Note:** `-n <name>` avoids it, which is why `run.sh` names every session.
 
 **D8 · harness `start-day.yaml:93-105`: no candidate source when Slack and ClickUp are off**
+- **Status:** fixed on `fix/harness-smoke-defects` (`31b8a8fdf`). `Status: Ready` stories under `docs/stories/` are always candidates, and Phase 4 recommends one of them when Slack and ClickUp are off.
 - **Observed:** with `claim_channel=none` and `clickup_list=none`, Phase 4
   has nothing to rank. The model answered "Cannot recommend a specific
   task", even though `docs/stories/1.1-subtract.md` is `Status: Ready`.
@@ -381,6 +385,7 @@ paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
   available."
 
 **D9 · harness `bmad-story.yaml:131-136`: the qa brief contradicts itself**
+- **Status:** fixed on `fix/harness-smoke-defects` (`dde253084`). The brief and `agents/qa.md` now say the same thing: the mutation and gate run in a throwaway `agent-harness_coord__worktree_create` worktree (slug `qa-<slug>`, branch `qa/<slug>`, base `origin/<story branch>`), never pushed and removed when done. The story worktree stays read-only.
 - **Observed:** the brief says "This is read-only: do not edit or commit".
   Two lines later it asks for "Re-run one mutation: break one guarded
   line". qa resolved it by calling `agent-harness_coord__worktree_create`
@@ -391,6 +396,7 @@ paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
   restored, with `git status` clean, in the story worktree.
 
 **D10 · harness: `bmad-story.yaml:116` and `agents/dev.md:26,61` disagree**
+- **Status:** fixed on `fix/harness-smoke-defects` (`dde253084`). The dev brief and `agents/dev.md` both put the story file in scope, limited to its `Status:` line and Dev record. qa's scope check and fan-out's brief allow the same.
 - **Observed:** the recipe says "Touch only the files the story lists". The
   dev persona says to set the story to `Status: Review` and fill in the Dev
   record. dev followed the persona and committed
@@ -399,6 +405,7 @@ paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
   always in scope, or the persona doesn't edit it.
 
 **D11 · harness `coord/src/harness_coord/coord.py:140-142`: re-creating an existing worktree gives a misleading error**
+- **Status:** fixed on `fix/harness-smoke-defects` (`36d5bc66e`). `path_exists` is checked before containment, with a regression test that was red first (`path_inside_repo` != `path_exists`).
 - **Observed:** the containment check runs before the `path_exists` check.
   So `agent-harness_coord__worktree_create` on a slug whose worktree already
   exists returns `path_inside_repo`, with "refusing worktree at
@@ -413,6 +420,7 @@ paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
 - **Evidence:** `runs/20261104-023434/logs/bmad-story.stream.jsonl`.
 
 **D12 · harness `coord/src/harness_coord/server.py:65-71` and `assertions.py:270`: `verify_assertions` resolves paths against the server's cwd, not the repo**
+- **Status:** fixed on `fix/harness-smoke-defects` (`720c416dc`). `verify_assertions(paths, repo=".")` resolves relative paths against `repo` (CLI: `--repo`), and the bmad-story, fan-out and qa-check briefs and the dev and qa personas pass the worktree. A live goose test covers it.
 - **Observed:** `agent-harness_coord__changed_paths(repo=…)` returns
   repo-relative paths. `agent-harness_coord__verify_assertions(paths)` has
   no `repo` parameter, so it resolves those paths against the MCP server's
