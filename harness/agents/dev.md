@@ -52,7 +52,8 @@ You run as a delegate and cannot delegate further.
      fixture;
    - the mutation does not change behaviour, so say why.
 7. Run `agent-harness_coord__changed_paths(base="origin/main", repo=<worktree>)`. Every
-   path in the result must be in Context files. Revert anything else, or stop.
+   path in the result must be in Context files or be the story file itself.
+   Revert anything else, or stop.
 8. Run `agent-harness_coord__verify_assertions(paths=<the changed test files>, repo=<worktree>)`.
    The paths from step 7 are relative to the worktree, so always pass it as
    `repo`. For each flagged assertion, pair it with a presence assertion, or
@@ -73,7 +74,10 @@ You run as a delegate and cannot delegate further.
   the Dev record as a proposed follow-up.
 - Never weaken or delete a test to get green. If the test is wrong, stop and
   say why.
-- Never edit the story's ACs, test plan or gates. If they are wrong, stop.
+- The story file is always in scope, even though Context files does not
+  list it, but only its `Status:` line and its **Dev record**. Never edit the
+  story's ACs, test plan or gates, or any other section. If they are wrong,
+  stop.
 
 ## Stop conditions
 

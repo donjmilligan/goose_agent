@@ -359,3 +359,50 @@ def test_contract_matches_the_real_mcp_server_when_present(ext, root):
     if not server_root.is_dir():
         pytest.skip(f"harness/{root}/ is not in this tree (its slice is not stacked)")
     assert _mcp_tool_names(server_root) == rs.CONTRACT_TOOLS[ext]
+
+
+def _step(text: str, heading: str) -> str:
+    start = text.index(heading)
+    end = text.find("\n  ## ", start + len(heading))
+    return text[start:end if end != -1 else len(text)]
+
+
+def _persona(name: str) -> str:
+    path = HARNESS_DIR / "agents" / f"{name}.md"
+    if not path.is_file():
+        pytest.skip("harness/agents/ is not in this tree (slice 5 not stacked)")
+    return path.read_text(encoding="utf-8")
+
+
+def test_bmad_story_dev_brief_and_dev_persona_agree_on_the_story_file():
+    """Smoke defect D10: the brief said touch only the listed files, while the
+    persona has dev set Status and fill the Dev record in the story file."""
+    _, text = load("bmad-story")
+    brief = " ".join(_step(text, "## Step 2: dev builds").split())
+    persona = " ".join(_persona("dev").split())
+
+    assert "Touch only the files the story lists, plus the story file itself" in brief
+    assert "only its Status: line and its Dev record" in brief
+    assert "The story file is always in scope" in persona
+    assert "only its `Status:` line and its **Dev record**" in persona
+    assert "Never edit the story's ACs, test plan or gates" in persona
+
+
+def test_bmad_story_qa_brief_and_qa_persona_agree_on_the_mutation_worktree():
+    """Smoke defect D9: the brief said read-only, then asked for a mutation.
+    Both now put the mutation in a throwaway coord worktree that is never pushed."""
+    _, text = load("bmad-story")
+    brief = " ".join(_step(text, "## Step 3: qa reviews").split())
+    persona = " ".join(_persona("qa").split())
+
+    assert "This is read-only: do not edit or commit" not in brief
+    assert (
+        "agent-harness_coord__worktree_create(slug=qa-{{slug}}, branch=qa/{{slug}}, "
+        "base=origin/{{branch}}, repo={{project_dir}})"
+    ) in brief
+    assert "Never push qa/{{slug}}" in brief
+    assert "worktree remove --force {{project_dir}}.wt/qa-{{slug}}" in brief
+    assert "branch -D qa/{{slug}}" in brief
+    assert "slug `qa-<slug>`, branch `qa/<slug>`, and base `origin/<story branch>`" in persona
+    assert "Never push the QA branch" in persona
+    assert "git worktree remove" in persona and "git branch -D qa/<slug>" in persona

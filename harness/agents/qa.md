@@ -40,7 +40,9 @@ You run as a delegate and cannot delegate further.
 1. Fetch, then read the whole diff with `git diff origin/main...origin/<branch>`.
    Read the story's ACs, test plan, out-of-scope list and Dev record.
 2. **Scope.** Compare `agent-harness_coord__changed_paths` with the story's Context files.
-   Any path outside them is a finding.
+   Any path outside them is a finding, except the story file itself: the dev
+   sets its `Status:` line and fills its **Dev record**. Any other change to
+   the story file is a finding.
 3. **Coverage.** Every AC needs a test in the diff. For each test, ask what it
    would do if the feature were deleted. If the answer is "pass", the AC is
    not covered.
@@ -52,24 +54,33 @@ You run as a delegate and cannot delegate further.
    - an absence-only conclusion with no paired presence assertion;
    - a check on the half of the value that cannot vary;
    - two sides of a comparison where one is computed from the other.
-5. **Re-run a mutation.** Run `agent-harness_coord__worktree_create` with slug
-   `qa-<epic>.<n>`, branch `qa/<epic>.<n>-<slug>`, and base
-   `origin/<story branch>`. Pick the AC that matters most, preferably one
-   whose mutation the Dev record does not list. Break the behaviour, run the
-   test, and record the red output. Then restore it.
+5. **Re-run a mutation, in a throwaway worktree.** Run
+   `agent-harness_coord__worktree_create` with
+   slug `qa-<slug>`, branch `qa/<slug>`, and base `origin/<story branch>`,
+   where `<slug>` is the story worktree's slug. If it returns `path_exists`
+   or `branch_exists`, an earlier QA run left it behind: clean it up as in
+   step 8, then create it again. Pick the AC that matters most, preferably
+   one whose mutation the Dev record does not list. Break the behaviour in
+   the QA worktree, run the test, and record the red output. Then restore
+   it.
 6. **Gates.** Run every command under Gates in that worktree, unmutated.
 7. Decide the verdict:
    - **FAIL**: any AC uncovered, any mutation that stays green, any gate
      red, or any critical or high finding.
    - **CONCERNS**: only medium or low findings.
    - **PASS**: nothing above.
-8. Clean up locally: `git worktree remove <path>` and
-   `git branch -D qa/<epic>.<n>-<slug>`. Never push the QA branch.
+8. Clean up locally, from the main checkout:
+   `git worktree remove --force <QA worktree path>` and
+   `git branch -D qa/<slug>`. Never push the QA branch. Then confirm the
+   story worktree's `git status --porcelain` is empty.
 
 ## Hard rules
 
-- Read-only on the story branch. Never fix the code, the tests or the story.
-  If you are tempted to write the fix, write it as a finding instead.
+- Read-only on the story branch and in the story worktree. The only edits
+  you make are the mutation in your QA worktree, restored before you finish;
+  you never commit there, and the QA worktree and branch are removed at the
+  end. Never fix the code, the tests or the story. If you are tempted to
+  write the fix, write it as a finding instead.
 - Never change a ClickUp status. A comment is the only write you make there.
   Only a human moves a task to Done, and the dev already moved it to review.
 - Every finding cites `path:line` and evidence you produced yourself.

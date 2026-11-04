@@ -118,8 +118,9 @@ instructions: |
   instructions: "Build the story at {{project_dir}}.wt/{{slug}}/{{story_path}}.
   Work only in {{project_dir}}.wt/{{slug}}. Every shell command starts with cd
   {{project_dir}}.wt/{{slug}} && or uses git -C {{project_dir}}.wt/{{slug}}.
-  Touch only the files the story lists. Push early with git push -u origin
-  {{branch}}. Write the tests in the same commit as the code. Watch each new
+  Touch only the files the story lists, plus the story file itself, and in
+  the story file only its Status: line and its Dev record. Push early with
+  git push -u origin {{branch}}. Write the tests in the same commit as the code. Watch each new
   test fail for the right reason: break the code, see it go red, restore it.
   Pair every absence assertion with a presence assertion. Run the gate
   ({{gate_command}}), then agent-harness_coord__changed_paths(base={{base}},
@@ -134,14 +135,22 @@ instructions: |
   ## Step 3: qa reviews
   delegate(source: "qa", max_turns: 30, working_dir: "{{project_dir}}.wt/{{slug}}",
   instructions: "Review branch {{branch}} in {{project_dir}}.wt/{{slug}}
-  against the story at {{story_path}}. This is read-only: do not edit or
-  commit. Read git -C {{project_dir}}.wt/{{slug}} diff {{base}}...HEAD. For
-  each acceptance criterion, name the test that proves it or say none does.
-  Re-run the gate yourself ({{gate_command}}). Re-run one mutation: break one
-  guarded line, run its test, confirm red, restore it, and confirm git status
-  is clean. Flag any test that asserts only an absence with nothing proving
-  the code ran. Return PASS or FAIL with the defects as file:line and the
-  evidence.")
+  against the story at {{story_path}}. Never edit, commit or push in
+  {{project_dir}}.wt/{{slug}}; it is read-only for you. Run git -C
+  {{project_dir}} fetch origin, then read git -C {{project_dir}}.wt/{{slug}}
+  diff {{base}}...HEAD. For each acceptance criterion, name the test that
+  proves it or say none does. Flag any test that asserts only an absence
+  with nothing proving the code ran. Your mutation runs in a throwaway
+  worktree: agent-harness_coord__worktree_create(slug=qa-{{slug}}, branch=qa/{{slug}}, base=origin/{{branch}}, repo={{project_dir}}).
+  If it returns path_exists or branch_exists, an earlier qa run left it
+  behind: remove it as below, then create it again. In that worktree, run
+  the gate unmutated (cd {{project_dir}}.wt/qa-{{slug}} && {{gate_command}}),
+  then break one guarded line, run its test, confirm red, and restore it.
+  Never commit there. Never push qa/{{slug}}. When done, run git -C
+  {{project_dir}} worktree remove --force {{project_dir}}.wt/qa-{{slug}} and
+  git -C {{project_dir}} branch -D qa/{{slug}}, then confirm git -C
+  {{project_dir}}.wt/{{slug}} status --porcelain is empty. Return PASS or
+  FAIL with the defects as file:line and the evidence.")
 
   If qa returns FAIL, give dev one fix round: delegate(resume: "<dev subagent
   id>", instructions: "<qa's defects, verbatim>"). Then run qa again with a

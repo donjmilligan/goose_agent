@@ -162,6 +162,8 @@ instructions: |
       Item: <id and title>. Ruling in force: <quote and where it is recorded, or "none needed">.
       Worktree: <absolute path>. Branch: <branch>, from <base> @ <sha>.
       Files you may touch: <list>. Do not touch: <list>.
+      If the item is a story file, it is in scope too, but only its Status:
+      line and its Dev record.
       Rules:
       - Work only in the worktree. Every shell command starts with
         `cd <worktree> &&` or uses `git -C <worktree>`. Never write in {{project_dir}}.
