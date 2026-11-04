@@ -158,3 +158,9 @@ It checks:
   a sub-recipe path cannot point to anyway, so these recipes use
   `delegate(source: ...)` instead. The validator rejects `sub_recipes` that
   come without `extensions`.
+- **A recipe that declares `extensions:` loses the plugin's servers.**
+  `goose-cli` adds plugin MCP servers only when the session has no recipe
+  `extensions:` list, no profile override and no resume (`builder.rs`,
+  around line 590). Every `agent-harness_*` tool would then vanish. None of
+  these recipes declares `extensions:`. Don't add one unless you also
+  register the three servers in it.

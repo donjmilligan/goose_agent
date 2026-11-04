@@ -99,6 +99,18 @@ Known limits. The guard approximates a shell; it is not one.
 
 The hook is a guardrail, not a sandbox.
 
+**It also covers commands you type.** goose runs `!cmd` bang-shell input
+through the same `shell` tool and `PreToolUse` hooks as model tool calls
+(`ops_bang_shell.rs`). So `!git commit --no-verify` typed at the goose prompt
+is denied too. To get around it on purpose, run the command in your own
+terminal instead of through goose.
+
+**The SessionStart banner only shows in `goose session`.** In headless
+`goose run`, goose emits SessionStart through a path that discards hook
+stdout (`state_machine/session.rs`), so the banner never appears there.
+Recipes call `agent-harness_coord__claim_signals` themselves rather than
+rely on it.
+
 ## Stop: `notify.py`
 
 The notifier is a port of vanta-lms `notify.py`:

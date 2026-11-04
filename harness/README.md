@@ -148,6 +148,14 @@ goose run --recipe bmad-plan --explain      # shows the recipe's parameters
 goose run --recipe bmad-plan --params <name>=<value>
 ```
 
+**The `harness-coord` CLI.** `install.sh` also installs `harness/coord` as a
+uv tool (`uv tool install --editable`), which puts `harness-coord` on your
+PATH. `bmad-story`'s retry check calls `harness-coord verify-assertions`, so
+it needs this. The command goes into uv's tool bin dir (usually
+`~/.local/bin`, or `UV_TOOL_BIN_DIR`), and `install.sh` warns if that dir is
+not on PATH. If uv is missing, or a `harness-coord` it did not install
+already exists, the step is skipped with a warning and nothing is touched.
+
 **To uninstall:** `harness/install.sh --uninstall`. It removes only what the
 manifest says this installer wrote, and only if the artifact is unmodified.
 That covers the copies, the plugin link, the rendered `.mcp.json`, the hints
