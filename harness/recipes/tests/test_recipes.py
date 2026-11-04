@@ -72,6 +72,27 @@ def test_delegate_sources_are_personas(name):
     assert sources <= rs.PERSONAS
 
 
+# Smoke defect D3: `goose run --max-turns` does not reach delegates, which
+# otherwise run up to 1000 turns. Builders get 60, reviewers 30.
+EXPECTED_MAX_TURNS = {
+    "bmad-plan": {"analyst": 40, "pm": 40, "architect": 40},
+    "bmad-shard": {"po": 60},
+    "bmad-story": {"sm": 30, "dev": 60, "qa": 30},
+    "fan-out": {"dev": 60, "qa": 30, "regression": 30, "devsecops": 30},
+}
+
+
+@pytest.mark.parametrize("name", sorted(EXPECTED_SOURCES))
+def test_every_delegate_call_passes_its_turn_cap(name):
+    _, text = load(name)
+    calls = rs.delegate_max_turns(text)
+    expected = EXPECTED_MAX_TURNS.get(name, {})
+    assert {source for source, _ in calls} == set(expected)
+    for source, cap in calls:
+        assert cap == expected[source], (source, cap)
+    assert rs.delegate_turn_cap_errors(text) == []
+
+
 def test_bmad_plan_delegates_in_order_analyst_pm_architect():
     _, text = load("bmad-plan")
     order = [m.group(1) for m in rs.SOURCE_REF_RE.finditer(text)]
@@ -222,7 +243,7 @@ parameters:
     requirement: required
     description: x
 instructions: |
-  Hello {{who}}. Use agent-harness_coord__gen_hash and delegate(source: "dev").
+  Hello {{who}}. Use agent-harness_coord__gen_hash and delegate(source: "dev", max_turns: 60).
 """
 
 
@@ -242,6 +263,15 @@ def test_validator_accepts_the_good_fixture():
         (lambda t: t.replace("agent-harness_coord__gen_hash", "agent-harness_coord__gen_hashes"), "agent-harness_coord__gen_hashes is not in the MCP"),
         (lambda t: t.replace("agent-harness_coord__gen_hash", "github__create_pr"), "github__create_pr is not in the MCP"),
         (lambda t: t.replace('source: "dev"', 'source: "developer"'), "source 'developer' is not one"),
+        (lambda t: t.replace(", max_turns: 60", ""), "source 'dev' passes no max_turns"),
+        (lambda t: t.replace("max_turns: 60", "max_turns: 0"), "max_turns must be at least 1"),
+        (lambda t: t.replace('delegate(source: "dev", max_turns: 60)',
+                             'delegate(working_dir: "x", source: "dev", max_turns: 60)'),
+         "call opens with 'working_dir'"),
+        (lambda t: t.replace('delegate(source: "dev", max_turns: 60)',
+                             'delegate(source: "dev", max_turns: 60) and '
+                             'delegate(resume: "<id>", max_turns: 5, instructions: "x")'),
+         "resume accepts only instructions"),
         (lambda t: t.replace("requirement: required", "requirement: optional"), "optional parameter needs a default"),
         (lambda t: t.replace("input_type: string", "input_type: text"), "input_type 'text'"),
         (lambda t: t.replace("Hello", "Hello {% if who %}x{% endif %}"), "minijinja block/comment syntax"),

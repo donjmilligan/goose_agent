@@ -62,6 +62,11 @@ instructions: |
     branch.
   - Delegates cannot delegate further, and they know only what you pass
     them. Every brief names the absolute worktree path.
+  - Every delegate(source: ...) call passes the max_turns shown in its step:
+    60 for dev, 30 for sm and qa. `goose run --max-turns` caps only this
+    session, and a delegate without a cap runs up to goose's default of 1000
+    turns. delegate(resume: ...) takes only instructions; goose refuses it
+    with max_turns.
   - ClickUp writes use agent-harness_clickup__add_comment first, then agent-harness_clickup__set_status.
     The ceiling is the list's review status, read with
     agent-harness_clickup__list_statuses. Never set done or closed.
@@ -89,7 +94,7 @@ instructions: |
      with the plan, then agent-harness_clickup__set_status to the list's in-progress status.
 
   ## Step 1: sm finalises the story
-  delegate(source: "sm", working_dir: "{{project_dir}}.wt/{{slug}}",
+  delegate(source: "sm", max_turns: 30, working_dir: "{{project_dir}}.wt/{{slug}}",
   instructions: "Finalise the story at {{project_dir}}.wt/{{slug}}/{{story_path}}
   so a developer with no other context can build it. It must state the files
   to touch, the contracts it reads or changes, acceptance criteria, a test
@@ -109,7 +114,7 @@ instructions: |
   gate. Stop here on NEEDS_CONTEXT or BLOCKED.
 
   ## Step 2: dev builds
-  delegate(source: "dev", working_dir: "{{project_dir}}.wt/{{slug}}",
+  delegate(source: "dev", max_turns: 60, working_dir: "{{project_dir}}.wt/{{slug}}",
   instructions: "Build the story at {{project_dir}}.wt/{{slug}}/{{story_path}}.
   Work only in {{project_dir}}.wt/{{slug}}. Every shell command starts with cd
   {{project_dir}}.wt/{{slug}} && or uses git -C {{project_dir}}.wt/{{slug}}.
@@ -127,7 +132,7 @@ instructions: |
   the red output, the restore) and the verify-assertions result.")
 
   ## Step 3: qa reviews
-  delegate(source: "qa", working_dir: "{{project_dir}}.wt/{{slug}}",
+  delegate(source: "qa", max_turns: 30, working_dir: "{{project_dir}}.wt/{{slug}}",
   instructions: "Review branch {{branch}} in {{project_dir}}.wt/{{slug}}
   against the story at {{story_path}}. This is read-only: do not edit or
   commit. Read git -C {{project_dir}}.wt/{{slug}} diff {{base}}...HEAD. For
@@ -140,8 +145,8 @@ instructions: |
 
   If qa returns FAIL, give dev one fix round: delegate(resume: "<dev subagent
   id>", instructions: "<qa's defects, verbatim>"). Then run qa again with a
-  fresh delegate(source: "qa", ...) call. Stop after that one round. A second
-  FAIL is DONE_WITH_CONCERNS or BLOCKED, never DONE.
+  fresh delegate(source: "qa", max_turns: 30, ...) call. Stop after that one
+  round. A second FAIL is DONE_WITH_CONCERNS or BLOCKED, never DONE.
 
   ## Step 4: verify, then report
   You verify before you report. Do not take the delegates' word for it.

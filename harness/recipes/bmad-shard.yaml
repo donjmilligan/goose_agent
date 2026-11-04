@@ -43,9 +43,14 @@ instructions: |
     {{project_dir}}/docs/stories/. Do not commit, push or open a PR.
   - No ClickUp write happens without the human's explicit approval in this
     conversation.
+  - The po delegate passes max_turns: 60, because it writes one file per
+    epic and per story. `goose run --max-turns` caps only this session, and
+    a delegate without a cap runs up to goose's default of 1000 turns.
+    delegate(resume: ...) takes only instructions; goose refuses it with
+    max_turns.
 
   ## Step 1: po shards
-  delegate(source: "po", instructions: "Shard {{project_dir}}/{{prd_path}}
+  delegate(source: "po", max_turns: 60, instructions: "Shard {{project_dir}}/{{prd_path}}
   and {{project_dir}}/{{architecture_path}}. Write one file per epic at
   {{project_dir}}/docs/epics/epic-<NN>-<slug>.md and one file per story at
   {{project_dir}}/docs/stories/<epic NN>.<story NN>-<slug>.md. Each story

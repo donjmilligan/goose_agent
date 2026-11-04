@@ -35,6 +35,10 @@ instructions: |
     so never put two of these delegate calls in the same message.
   - Delegates know only what you pass them. Give each one the absolute paths
     it reads and writes.
+  - Every delegate(source: ...) call passes max_turns: 40. `goose run
+    --max-turns` caps only this session, and a delegate without a cap runs
+    up to goose's default of 1000 turns. delegate(resume: ...) takes only
+    instructions; goose refuses it with max_turns.
   - Write nothing outside {{project_dir}}/docs/. Do not commit, push, branch
     or open a PR. The human reviews first.
   - Do not delegate to po, sm or dev, and do not start shard or build work.
@@ -45,7 +49,7 @@ instructions: |
     question to the human with the options and your recommendation, and wait.
 
   ## Step 1: analyst writes the brief
-  delegate(source: "analyst", instructions: "Write a project brief at
+  delegate(source: "analyst", max_turns: 40, instructions: "Write a project brief at
   {{project_dir}}/docs/brief.md from the idea below. Cover the problem, who
   has it, the evidence for it, goals and non-goals, constraints, risks and the
   open questions. Mark every assumption as an assumption. Idea: <the idea
@@ -56,7 +60,7 @@ instructions: |
   delegate(resume: "<its subagent id>", instructions: "<what is missing>").
 
   ## Step 2: pm writes the PRD
-  delegate(source: "pm", instructions: "Read {{project_dir}}/docs/brief.md
+  delegate(source: "pm", max_turns: 40, instructions: "Read {{project_dir}}/docs/brief.md
   and write {{project_dir}}/docs/prd.md: functional requirements numbered
   FR1..n, non-functional requirements NFR1..n, each testable, then epics with
   user stories and acceptance criteria, and what is out of scope. Carry every
@@ -66,7 +70,7 @@ instructions: |
   open question from the brief is either carried forward or answered.
 
   ## Step 3: architect writes the architecture
-  delegate(source: "architect", instructions: "Read
+  delegate(source: "architect", max_turns: 40, instructions: "Read
   {{project_dir}}/docs/brief.md and {{project_dir}}/docs/prd.md and write
   {{project_dir}}/docs/architecture.md: components and their responsibilities,
   data model, interfaces and contracts, technology choices with the reason

@@ -63,6 +63,11 @@ instructions: |
     which places them at {{project_dir}}.wt/<slug>, outside the repo.
   - **No merges and no PRs.** No `--no-verify`, no force-push, and no push to
     the default branch.
+  - **Every delegate has a turn cap.** Each delegate(source: ...) call
+    passes max_turns: 60 for dev, 30 for a reviewer. `goose run --max-turns`
+    caps only this session, and a delegate without a cap runs up to goose's
+    default of 1000 turns. delegate(resume: ...) takes only instructions;
+    goose refuses it with max_turns.
   - **ClickUp:** write a comment with agent-harness_clickup__add_comment first, then change
     the status with agent-harness_clickup__set_status. The ceiling is the list's review
     status, read with agent-harness_clickup__list_statuses. Never set done or closed.
@@ -139,8 +144,8 @@ instructions: |
   4. **Update the ticket, if the item is one.** Post the item's plan with
      agent-harness_clickup__add_comment, then set the list's in-progress status with
      agent-harness_clickup__set_status.
-  5. **Dispatch.** Call delegate(source: "dev", working_dir: <worktree path>,
-     instructions: <the brief below>).
+  5. **Dispatch.** Call delegate(source: "dev", max_turns: 60,
+     working_dir: <worktree path>, instructions: <the brief below>).
      - Put up to the concurrency cap of independent delegate calls in ONE
        message. goose runs them in parallel and returns once that whole
        batch has finished.
@@ -201,9 +206,9 @@ instructions: |
      300 changed lines, or anything touching auth, secrets or personal data,
      use one review delegate. Reviewers are read-only, and each counts
      against the concurrency cap.
-     - delegate(source: "regression", ...) for blast radius;
-     - delegate(source: "devsecops", ...) for security;
-     - delegate(source: "qa", ...) for the acceptance criteria.
+     - delegate(source: "regression", max_turns: 30, ...) for blast radius;
+     - delegate(source: "devsecops", max_turns: 30, ...) for security;
+     - delegate(source: "qa", max_turns: 30, ...) for the acceptance criteria.
 
   Then act on the outcome:
   - **Verified DONE.**

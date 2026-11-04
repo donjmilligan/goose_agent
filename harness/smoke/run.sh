@@ -16,6 +16,8 @@
 #            RUN_TIMEOUT      wall-clock seconds per recipe before it is killed (default: 2700)
 #            SUBAGENT_MAX_TURNS  GOOSE_SUBAGENT_MAX_TURNS for delegates (default: 60). goose's
 #                             --max-turns does not reach delegates, which default to 1000.
+#                             The recipes now pass max_turns on every delegate call, which
+#                             takes precedence; this stays as the fallback (D3).
 #                             30 was too few for dev in the 2026-11-04 run (RESULTS.md).
 #            HF_HUB_CACHE     where the model already lives, if not under the sandbox HOME
 #            GOOSE_PROVIDER   default: local

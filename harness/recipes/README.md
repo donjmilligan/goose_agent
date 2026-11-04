@@ -104,6 +104,8 @@ Every recipe is checked for:
   so a `${#x}` in shell would break it;
 - every `<ext>__<tool>` names a tool in the MCP interface contract;
 - every `delegate(source: ...)` names one of the ten personas;
+- every `delegate(source: ...)` passes `max_turns` right after the source,
+  and no `delegate(resume: ...)` passes one;
 - every `sub_recipes` path exists.
 
 Four further tests compare the contract with the real tool lists and agent
@@ -139,6 +141,13 @@ It checks:
   from the repo's parent. If a dispatch is still rejected, the briefs fall
   back to absolute paths (`cd <wt> &&`, `git -C <wt>`). A real fix needs a
   `worktree:` parameter on `delegate`, which is Rust work.
+- **`goose run --max-turns` does not reach delegates.** A delegate's cap
+  is its own `max_turns`, then `GOOSE_SUBAGENT_MAX_TURNS`, then goose's
+  default of 1000 (`summon.rs` `resolve_max_turns`). So every
+  `delegate(source: ...)` in these recipes passes `max_turns` right after
+  the source: 60 for dev and po, 40 for the planners, 30 for sm and the
+  reviewers. The validator rejects a call without one, and a
+  `delegate(resume: ...)` that passes one, because goose refuses it.
 - **Delegates cannot delegate** (`summon.rs`, "Delegated tasks cannot spawn
   further delegations"). So `fan-out` runs `dev` personas, not `bmad-story`,
   and does qa and review delegates itself.

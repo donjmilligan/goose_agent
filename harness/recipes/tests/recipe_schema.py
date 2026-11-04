@@ -132,6 +132,18 @@ PERSONAS = {
 }
 SOURCE_REF_RE = re.compile(r"\bsource:\s*\"([^\"]+)\"")
 
+# A delegate's turn cap is `DelegateParams.max_turns`, else recipe
+# settings.max_turns, else GOOSE_SUBAGENT_MAX_TURNS, else default_max_turns(),
+# which is 1000 (summon.rs:46-58, 1433-1438; config/base.rs:1339-1341).
+# `goose run --max-turns` caps only the parent, so every `delegate(source: ...)`
+# names its cap, right after the source. `resume` accepts only `instructions`
+# and is refused if it passes max_turns (summon.rs:1017-1039).
+DELEGATE_CALL_RE = re.compile(r"\bdelegate\((\w+):")
+DELEGATE_SOURCE_CALL_RE = re.compile(
+    r"\bdelegate\(source:\s*\"([^\"]+)\"(?:,\s*max_turns:\s*(\d+)\b)?"
+)
+DELEGATE_RESUME_CALL_RE = re.compile(r"\bdelegate\(resume:[^)]*")
+
 
 def recipe_body(document: Any) -> Any:
     """goose accepts a recipe nested under a top-level `recipe:` key (mod.rs:323-333, also validate_recipe.rs:388-389)."""
@@ -326,6 +338,7 @@ def validate_recipe(document: Any, raw_text: str, recipe_dir: Path) -> list[str]
 
     errors.extend(tool_reference_errors(raw_text))
     errors.extend(source_reference_errors(raw_text))
+    errors.extend(delegate_turn_cap_errors(raw_text))
     return errors
 
 
@@ -352,3 +365,31 @@ def source_reference_errors(text: str) -> list[str]:
         f"delegate: source {name!r} is not one of the personas"
         for name in sorted(source_references(text) - PERSONAS)
     ]
+
+
+def delegate_max_turns(text: str) -> list[tuple[str, int | None]]:
+    """(source, max_turns) for every `delegate(source: ...)` call, in order."""
+    return [
+        (source, int(cap) if cap else None)
+        for source, cap in DELEGATE_SOURCE_CALL_RE.findall(text)
+    ]
+
+
+def delegate_turn_cap_errors(text: str) -> list[str]:
+    errors = [
+        f"delegate: call opens with {first!r}; put source: or resume: first"
+        for first in DELEGATE_CALL_RE.findall(text)
+        if first not in ("source", "resume")
+    ]
+    for source, cap in delegate_max_turns(text):
+        if cap is None:
+            errors.append(
+                f"delegate: source {source!r} passes no max_turns after the source, "
+                "so it runs up to goose's default of 1000 turns"
+            )
+        elif cap < 1:
+            errors.append(f"delegate: source {source!r} max_turns must be at least 1")
+    for call in DELEGATE_RESUME_CALL_RE.findall(text):
+        if "max_turns" in call:
+            errors.append("delegate: resume accepts only instructions; remove max_turns")
+    return errors
