@@ -14,8 +14,9 @@
 #            RECIPES          space-separated subset (default: "qa-check start-day bmad-story")
 #            MAX_TURNS        goose --max-turns per recipe (default: 40)
 #            RUN_TIMEOUT      wall-clock seconds per recipe before it is killed (default: 2700)
-#            SUBAGENT_MAX_TURNS  GOOSE_SUBAGENT_MAX_TURNS for delegates (default: 30). goose's
+#            SUBAGENT_MAX_TURNS  GOOSE_SUBAGENT_MAX_TURNS for delegates (default: 60). goose's
 #                             --max-turns does not reach delegates, which default to 1000.
+#                             30 was too few for dev in the 2026-11-04 run (RESULTS.md).
 #            HF_HUB_CACHE     where the model already lives, if not under the sandbox HOME
 #            GOOSE_PROVIDER   default: local
 set -euo pipefail
@@ -31,7 +32,7 @@ SMOKE_ROOT="${SMOKE_ROOT:-${TMPDIR:-/tmp}/harness-smoke}"
 RECIPES="${RECIPES:-qa-check start-day bmad-story}"
 MAX_TURNS="${MAX_TURNS:-40}"
 RUN_TIMEOUT="${RUN_TIMEOUT:-2700}"
-SUBAGENT_MAX_TURNS="${SUBAGENT_MAX_TURNS:-30}"
+SUBAGENT_MAX_TURNS="${SUBAGENT_MAX_TURNS:-60}"
 GATE="uv run pytest -q"
 
 mkdir -p "$SMOKE_ROOT"

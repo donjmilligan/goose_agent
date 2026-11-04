@@ -77,8 +77,26 @@ highest-quality variant that fits in 0.85 × 24 GB
 
 The frontier columns are empty because there is no API key on this machine.
 To fill them, re-run `run.sh` with `GOOSE_PROVIDER=<provider>`,
-`MODEL=<model>` and the key exported. The run in this section is
-`runs/20261104-014048`.
+`MODEL=<model>` and the key exported. The runs are:
+
+- `qa-check`, `start-day` and `bmad-story` run 1: `runs/20261104-014048`
+- `bmad-story` run 2: `runs/20261104-023434`
+
+Both are under `$SMOKE_ROOT`, which for this report was
+`/private/tmp/claude-501/-Users-donjmilligan-Code/bae10d27-f9d2-4082-87b6-40f98d4a3860/scratchpad/fo7mkc-a3`.
+
+### Summary
+
+| Recipe | Local result | Harness tools actually called | Worktree outside the repo | `retry.checks` | Wall clock | Output tok/s (end to end) | Frontier |
+|---|---|---|---|---|---|---|---|
+| `qa-check` | **PASS** (DONE) | `changed_paths`, `verify_assertions` | n/a | n/a | 80 s | 11.0 | needs an API key |
+| `start-day` | **PASS with one miss**: no task recommended (D8) | `worktree_list`, `claim_signals` | n/a, and none created | n/a | 281 s | 12.8 | needs an API key |
+| `bmad-story` run 1 | **FAIL**: killed at 2700 s. The qa delegate looped on D1 | parent: `worktree_list`, `claim_signals`, `worktree_create`. dev: `claim_signals`, `changed_paths`, `verify_assertions`. qa: `changed_paths`, `verify_assertions`, `worktree_create` | **yes**: `toyrepo.wt/subtract` | not reached; by hand: both pass | 2706 s | 15.5 | needs an API key |
+| `bmad-story` run 2 | **FAIL**: parent hit `--max-turns 40` with no `final_output`. All 3 delegates hit 30 turns (D1, D3). qa caught a real vacuous test | parent: `worktree_list`, `claim_signals`, `worktree_create` (D11), `verify_assertions` (D12). sm: `claim_signals`. qa: `changed_paths` | **yes**: `toyrepo.wt/subtract` | not reached; by hand: both pass | 4024 s | 12.8 | needs an API key |
+
+The tool names in this table drop the `agent-harness_coord__` prefix.
+Speed for all runs: **decode ≈ 69 tok/s, prefill ≈ 817 tok/s**, and about
+80 % of model time goes to prefill (see Model speed).
 
 ### `qa-check`
 
@@ -152,7 +170,48 @@ To fill them, re-run `run.sh` with `GOOSE_PROVIDER=<provider>`,
    wrong name each time (defects D1, D2). Delegates are not bounded by
    `goose run --max-turns` (D3).
 
-BMAD_STORY_RUN2_PLACEHOLDER
+### `bmad-story`, run 2 (`runs/20261104-023434`, `SUBAGENT_MAX_TURNS=30`, `RUN_TIMEOUT=4800`)
+
+This run used a fresh toy repo, the same model, and delegates capped at 30
+turns (D3).
+
+| | Local: Qwen3.6-35B-A3B Q4_K_M | Frontier |
+|---|---|---|
+| Result | **FAIL: the parent hit `--max-turns 40`** ("I've reached the maximum number of actions…") **without calling `recipe__final_output`.** goose exited 0 with no structured result. The branch is pushed and green, but the qa fix round was never re-reviewed | needs an API key |
+| sm delegate | Ran. It rewrote the story to the sm template and committed `e85b8ad`. Then it **hit 30 turns** after 15 wrong-name `final_output` nudges (D1) | needs an API key |
+| dev delegate | **Hit 30 turns mid-work, with edits uncommitted.** It spent turns on `git checkout --` and rewrote files twice. The parent then committed and pushed the work itself as `f7239bc` | needs an API key |
+| qa delegate | **Found a real defect:** `tests/test_calc.py:20` `test_subtract_importable` asserted only that the import worked, and its listed mutation (dropping it from `__all__`) cannot go red. It **hit 30 turns** after 23 wrong-name nudges (D1). Its verdict still reached the parent through goose's "max turns reached; last response" text | needs an API key |
+| Fix round | The parent called `delegate(resume: "<qa id>", working_dir: …)`. That is the wrong subagent, and goose rejected it: "Error: 'resume' only accepts 'instructions'; remove working_dir". The parent then fixed the test itself (`b18a173`, `assert subtract(1, 0) == 1`) and pushed. qa did not run again before the turn cap | needs an API key |
+| Harness tools, parent | `agent-harness_coord__worktree_list` ×7, `agent-harness_coord__claim_signals` ×1, `agent-harness_coord__worktree_create` ×3 (the 2nd and 3rd returned D11's misleading error), `agent-harness_coord__verify_assertions` ×1 (`missing`, D12) | needs an API key |
+| Harness tools, delegates | sm: `agent-harness_coord__claim_signals`. qa: `agent-harness_coord__changed_paths`. dev: none, because it ran out of turns before `changed_paths` and `verify_assertions` | needs an API key |
+| Other tools | parent: `delegate` ×4, `shell` ×21, `edit` ×2. sm: `shell` ×13, `write` ×1. dev: `shell` ×28, `write` ×1. qa: `shell` ×6 | needs an API key |
+| Worktree outside the repo | **Yes.** `work/toyrepo.wt/subtract` on `feature/subtract` (`git worktree list`). All three `delegate(working_dir=…)` calls were accepted | needs an API key |
+| Branch | `feature/subtract` @ `b18a173`, **pushed** to the bare origin. Commits: `e85b8ad`, then `f7239bc`, then `b18a173` | needs an API key |
+| `retry.checks` | **Never ran in goose.** The run ended at the turn cap, before `final_output`. Run by hand afterwards (`logs/bmad-story.retry-checks-manual.log`): check 1, the gate, gave `5 passed`, exit 0. Check 2 gave `verify-assertions: clean (1 file(s) scanned in tests/test_calc.py)`, exit 0 | needs an API key |
+| Wall clock | **4024 s**: sm 787 s, dev 772 s, qa 974 s, and the rest in the parent | needs an API key |
+| Model requests | 130. Prompts 19.8k median and 37.4k max; 51,428 output tokens; 4,012 s | needs an API key |
+| Speed | 12.8 output tok/s end to end. Fit: prefill 811 tok/s, decode 74 tok/s | needs an API key |
+
+**What the two `bmad-story` runs show.** The harness mechanics work with a
+local model:
+
+- claim, worktree outside the repo, delegates by persona, push;
+- `verify_assertions`, and a qa that catches a vacuous test.
+
+The run outcomes fail for three reasons:
+
+1. **D1 and D2.** Every sm and qa delegate (one sm and two qa runs) wasted
+   15–30+ turns on the wrong `final_output` name. The only delegate in
+   either run that called `recipe__final_output` successfully was the run-1
+   dev. The run-2 dev ran out of turns doing the work itself.
+2. **Turn budgets.** Delegates are unbounded unless capped (D3). Capped at 30,
+   the cap is eaten by D1.
+3. **Model slips.** It skipped sm in run 1, called `read_image` on a `.md`
+   file, called `worktree_create` again after it succeeded, and resumed the
+   wrong subagent.
+
+Neither run reached goose's `retry.checks`. Their commands pass on both
+branches when run by hand.
 
 ## Model speed
 
@@ -160,17 +219,18 @@ Method: `reqlog_watch.py` captures every per-request log goose writes. Each
 log gives the prompt and output tokens, the start (file birth time) and the
 end (mtime). The llama.cpp backend serves one request at a time. I fitted
 `time = prompt_tokens / prefill_rate + output_tokens / decode_rate` across
-all 108 recipe requests. The fit predicts 3,039 s against 3,027 s measured.
+all **238** recipe requests in the four recipe runs. The fit predicts
+7,119 s against 7,039 s measured.
 
 | Metric | Value | Source |
 |---|---|---|
-| Decode | **≈ 64 tok/s** | fit over 108 requests. Cross-check: a request with a tiny prompt (436 prompt tokens, 1,152 output tokens; the title request in `goose run --no-session --no-profile`) ran at 61.8 tok/s |
-| Prefill | **≈ 826 tok/s** | same fit |
-| Output tok/s, end to end | 11–15.5 | output tokens ÷ model-busy time, prefill included |
-| Prompt per turn | 12.5k tokens at the start of a session, growing to 23k; 17.8k average | request logs |
-| Share of model time spent on prefill | **≈ 76 %** (estimate from the fit: 2,322 s prefill against 717 s decode) | fit |
-| Model load | 1.3–4.7 s (cold, then warm page cache) | `model_load_ms` in the request log |
-| Average turn | 28 s: about 21 s prefill and 7 s decode (425 output tokens on average) | request logs |
+| Decode | **≈ 69 tok/s** | fit over 238 requests. Per-run fits: 40–74 tok/s, and the qa-check fit has only 4 points. Cross-check: a request with a tiny prompt (436 prompt tokens, 1,152 output tokens; the title request in `goose run --no-session --no-profile`) ran at 61.8 tok/s |
+| Prefill | **≈ 817 tok/s** | same fit; per-run fits 811–977 tok/s |
+| Output tok/s, end to end | 11–15.5 per run; 13.8 over all runs | output tokens ÷ model-busy time, prefill included |
+| Prompt per turn | 12.5k tokens at the start of a session, growing to 37.4k; 19.6k average | request logs |
+| Share of model time spent on prefill | **≈ 80 %** (estimate from the fit: about 5,710 s prefill against about 1,409 s decode) | fit |
+| Model load | 1.2–4.7 s (cold, then warm page cache) | `model_load_ms` in the request log |
+| Average turn | 29.6 s: about 24 s prefill and 6 s decode (409 output tokens on average) | request logs |
 
 The prompt floor is about 12.5k tokens. The harness's share of it, measured in
 characters from the applied prompt (the token figures are estimates at about
@@ -179,7 +239,7 @@ characters from the applied prompt (the token figures are estimates at about
 - `WORKING_AGREEMENT.md`, 12.8k characters;
 - the 19 `agent-harness_*` tool schemas, 9.2k characters;
 - together about 35 % of the 62k-character applied prompt. That is about
-  5.5k tokens, or about 6.7 s of re-prefill per turn at 826 tok/s.
+  5.5k tokens, or about 6.7 s of re-prefill per turn at 817 tok/s.
 
 `goose run --stats` is not usable for this (defect D6).
 
@@ -189,16 +249,17 @@ These answers come from the measurements above only.
 
 **What the GPU gives you:**
 
-- **Decode is fine.** About 64 tok/s on the M5 Pro's GPU. A typical turn
-  emits about 425 tokens, including thinking, and that takes about 7 s.
+- **Decode is fine.** About 69 tok/s on the M5 Pro's GPU. A typical turn
+  emits about 410 tokens, including thinking, and that takes about 6 s.
 - **Prefill is where the time goes.**
   - The llama.cpp backend builds a new context for every request
     (`inference_engine.rs:337,414`), so every turn re-reads the whole prompt
-    at about 826 tok/s.
-  - Prompts are 12.5k–23k tokens, so that costs 15–28 s per turn: 76 % of
-    all model time.
+    at about 817 tok/s.
+  - Prompts are 12.5k–37k tokens, so that costs 15–45 s per turn: about
+    80 % of all model time.
   - qa-check needed 4 turns, or 80 s. start-day needed 13 turns, or 281 s.
-    One bmad-story needs well over 90 turns, which is more than 45 minutes.
+    One bmad-story took 91–130 requests, or 45–67 minutes, and still did not
+    finish.
 - **It is sequential.** One request at a time, so fan-out's "5 parallel
   delegates" would queue on one GPU. That was not measured; it follows from
   the backend's single model slot.
@@ -207,28 +268,35 @@ These answers come from the measurements above only.
 
 - For the short, read-mostly recipes (`qa-check`, `start-day`), a local model
   on this GPU is usable. It produced correct reports in about 1.5 and 5
-  minutes, with no key and no network.
-- For `bmad-story` and `fan-out`, it is not yet practical. That is mostly
-  not a GPU limit: about three quarters of the time is spent re-prefilling an
-  unchanged prompt prefix.
+  minutes, with no key and no network. start-day's single miss (D8) is a
+  recipe gap more than a model one.
+- For `bmad-story` and `fan-out`, it is not practical today. Two things are
+  in the way, and neither is a GPU limit:
+  - about 80 % of model time goes to re-prefilling an unchanged prompt
+    prefix (D5);
+  - every delegate burns its turns on the wrong-name `final_output` nudge
+    (D1, D2).
 - **Estimate:** with prompt-prefix KV reuse, which is a Rust change in
-  `goose-local-inference`, a turn would drop from about 28 s to about 8 s.
-- A second blocker is not about speed at all: a tool-name mismatch made a
-  delegate loop (D1).
-- Whether a frontier model beats it on wall clock needs an API key. Those
-  columns are empty.
+  `goose-local-inference`, a turn would drop from about 30 s to about 8 s.
+  That assumes about 1k new prompt tokens per turn plus decode.
+- Fixing D1, D2 and D3 is required before any model can finish
+  `bmad-story` reliably. Whether a frontier model would also trip on D1 is
+  untested: it needs an API key, which is why those columns are empty.
 
 ## Defects found outside `harness/smoke`
 
 I didn't fix any of these. Each has the location, what I observed against
-what I expected, and the evidence. The log paths are relative to
-`$SMOKE_ROOT/runs/20261104-014048/logs/`.
+what I expected, and the evidence. Unless a defect names a run, its log
+paths are relative to `$SMOKE_ROOT/runs/20261104-014048/logs/`.
 
 **D1 · goose (Rust): the `final_output` nudge names the wrong tool**
 - **Location:** `crates/goose/src/agents/final_output_tool.rs:14,17`. The
   tool is `recipe__final_output`, but `FINAL_OUTPUT_CONTINUATION_MESSAGE`
   says "You MUST call the `final_output` tool NOW".
-- **Observed:** the qa delegate obeyed literally, about 30 times.
+- **Observed:** the qa delegate obeyed literally, about 30 times, in run 1.
+  In run 2, sm got 15 nudges and qa got 23, and each hit the 30-turn cap
+  with 0 successful `recipe__final_output` calls
+  (`runs/20261104-023434/logs/bmad-story.subagent-*.session.json`).
 - **Expected:** the nudge names the real tool.
 - **Evidence** (the last 3 requests all end the same way):
   ```
@@ -256,7 +324,8 @@ what I expected, and the evidence. The log paths are relative to
   `--max-turns 40`.
 - **Expected:** the recipes pass `max_turns` on each delegate call, or
   document `GOOSE_SUBAGENT_MAX_TURNS`.
-- **What I did:** `run.sh` now sets `GOOSE_SUBAGENT_MAX_TURNS=30`.
+- **What I did:** `run.sh` now sets `GOOSE_SUBAGENT_MAX_TURNS`. Run 2 used
+  30, and the default is now 60 because 30 was too few for dev.
 
 **D4 · goose CLI (Rust): headless `goose run` never fires `SessionStart`**
 - **Location:** `crates/goose-cli/src/session/mod.rs`.
@@ -341,6 +410,22 @@ what I expected, and the evidence. The log paths are relative to
   depends on the model reading this error correctly. In run 2 the model
   called `worktree_create` three times; the second and third returned this
   error.
+- **Evidence:** `runs/20261104-023434/logs/bmad-story.stream.jsonl`.
+
+**D12 · harness `coord/src/harness_coord/server.py:65-71` and `assertions.py:270`: `verify_assertions` resolves paths against the server's cwd, not the repo**
+- **Observed:** `agent-harness_coord__changed_paths(repo=…)` returns
+  repo-relative paths. `agent-harness_coord__verify_assertions(paths)` has
+  no `repo` parameter, so it resolves those paths against the MCP server's
+  working directory, which is the goose session's directory. `bmad-story`
+  must start from the repo's parent (see the goose limits in the recipes
+  README), so when the parent session passed `tests/test_calc.py` it got
+  back `"ok": false, "files_scanned": 0, "missing": ["tests/test_calc.py"]`.
+- **Context:** the same call worked in qa-check and in the delegates, whose
+  cwd is the worktree. It is good that the miss was reported as not clean.
+- **Expected:** a `repo` argument, the same as `changed_paths` has, or
+  briefs that require absolute paths. `qa-check.yaml:57-59` and the dev
+  brief in `bmad-story.yaml` (around line 120) say only "the changed test
+  files".
 - **Evidence:** `runs/20261104-023434/logs/bmad-story.stream.jsonl`.
 
 ### Not exercised, so not verified

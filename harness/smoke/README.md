@@ -47,7 +47,7 @@ SMOKE_ROOT=/path/to/sandbox \
 | `RECIPES` | `qa-check start-day bmad-story` | which recipes to run, in order |
 | `MAX_TURNS` | `40` | `goose run --max-turns` for each recipe |
 | `RUN_TIMEOUT` | `2700` | seconds before a recipe is killed |
-| `SUBAGENT_MAX_TURNS` | `30` | exported as `GOOSE_SUBAGENT_MAX_TURNS`. `--max-turns` does not reach delegates, which otherwise get 1000 turns (RESULTS.md, D3) |
+| `SUBAGENT_MAX_TURNS` | `60` | exported as `GOOSE_SUBAGENT_MAX_TURNS`. `--max-turns` does not reach delegates, which otherwise get 1000 turns (RESULTS.md, D3). The 2026-11-04 run used 30, and the dev delegate ran out of turns; 60 has not been run yet |
 | `GOOSE_PROVIDER` | `local` | set it, plus an API key, to run the same smoke against a frontier model |
 
 Each run writes `$SMOKE_ROOT/runs/<stamp>/`:
