@@ -1,0 +1,19 @@
+[project]
+name = "toycalc"
+version = "0.1.0"
+description = "Fixture package for the agent-harness live smoke test."
+requires-python = ">=3.10"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/toycalc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
