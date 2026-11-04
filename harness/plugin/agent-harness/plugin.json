@@ -1,0 +1,5 @@
+{
+  "name": "agent-harness",
+  "version": "0.1.0",
+  "description": "Multi-agent dev harness for goose: a SessionStart claim gate (remote branches, worktrees, open Slack claims), a PreToolUse guard on the shell tool that blocks hook bypasses, force pushes, pushes to the default branch, admin merges, unnamed compose teardowns, commits on main and staged secrets, and a Stop desktop notification."
+}

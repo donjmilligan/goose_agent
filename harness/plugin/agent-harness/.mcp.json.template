@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "clickup": {
+      "command": "uv",
+      "args": ["run", "--project", "${HARNESS_ROOT}/clients/clickup", "harness-clickup-mcp"]
+    },
+    "slack": {
+      "command": "uv",
+      "args": ["run", "--project", "${HARNESS_ROOT}/clients/slack", "harness-slack-mcp"]
+    },
+    "coord": {
+      "command": "uv",
+      "args": ["run", "--project", "${HARNESS_ROOT}/coord", "harness-coord-mcp"]
+    }
+  },
+  "x-harness-env-passthrough": [
+    "CLICKUP_API_TOKEN",
+    "SLACK_BOT_TOKEN",
+    "HARNESS_SLACK_ALLOWED_CHANNELS",
+    "HARNESS_CLAIM_CHANNEL",
+    "HARNESS_ENV_FILE",
+    "HARNESS_ALLOW_DONE"
+  ]
+}
