@@ -142,6 +142,25 @@ def test_block_and_paired_allow(repo: Repo, blocked: str, allowed: str, words: l
     assert_allowed(guard(allowed, repo.path))
 
 
+def goose_denial(stderr: str) -> str:
+    """The text goose shows the model (hooks/mod.rs `HookChainOutcome::denial`)."""
+    return (
+        f"Tool call denied by policy hook `agent-harness`: {stderr.strip()}. "
+        "Do not retry; this is a policy denial, not a transient failure."
+    )
+
+
+@pytest.mark.parametrize("blocked", [p[0] for p in PAIRS] + ["git commit -m x"])
+def test_reason_reads_cleanly_inside_goose_denial(repo: Repo, blocked: str) -> None:
+    if blocked == "git commit -m x":
+        repo.checkout("main")
+    result = guard(blocked, repo.path)
+    assert result.returncode == 2
+    denial = goose_denial(result.stderr)
+    assert ".. Do not retry" not in denial, denial
+    assert denial.endswith("transient failure.")
+
+
 def test_every_reason_is_reported_together(repo: Repo) -> None:
     result = guard("git add .env && git push --force origin main", repo.path)
     assert_blocked(result, ".env", "--force", "`main`")

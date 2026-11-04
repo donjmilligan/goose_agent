@@ -507,7 +507,9 @@ def main() -> int:
         return 0
     if not reasons:
         return 0
-    sys.stderr.write("agent-harness guard: " + " | ".join(reasons) + "\n")
+    # goose appends ". Do not retry; ..." to the reason, so a final period doubles.
+    message = " | ".join(reasons).rstrip().rstrip(".")
+    sys.stderr.write("agent-harness guard: " + message + "\n")
     return 2
 
 
