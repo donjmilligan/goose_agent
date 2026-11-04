@@ -71,14 +71,16 @@ def changed_paths(base: str = "origin/main", repo: str = ".") -> dict[str, Any]:
 
 
 @mcp.tool()
-def verify_assertions(paths: list[str]) -> dict[str, Any]:
+def verify_assertions(paths: list[str], repo: str = ".") -> dict[str, Any]:
     """Scan Python tests for spy collectors asserted empty with no positive assertion
-    proving the code ran. Directories are searched for `test_*.py`. A deliberate absence
-    assertion is exempted by `# absence-ok: <reason>` on the line before; a bare pragma is
-    not accepted. `files_scanned` is the positive control."""
+    proving the code ran. Relative `paths` resolve against `repo` (pass the worktree, as
+    for `changed_paths`); absolute paths are used as given. Directories are searched for
+    `test_*.py`. A deliberate absence assertion is exempted by `# absence-ok: <reason>` on
+    the line before; a bare pragma is not accepted. `files_scanned` is the positive
+    control."""
     if not paths:
         raise _refuse(CoordError("invalid_argument", "paths is empty"))
-    return assertions.scan(paths).as_dict()
+    return assertions.scan(paths, repo).as_dict()
 
 
 def main() -> None:

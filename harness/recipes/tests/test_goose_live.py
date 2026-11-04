@@ -307,6 +307,36 @@ def test_coord_refusal_is_a_tool_error_through_goose(sandbox, toy_repo):
     assert listing["isError"] is False and listing["structuredContent"]["count"] == 1
 
 
+def test_coord_verify_assertions_resolves_against_repo_through_goose(sandbox, toy_repo):
+    """Smoke defect D12: repo-relative paths from changed_paths(repo=...) must
+    resolve against `repo`, not the MCP server's working directory."""
+    tests_dir = toy_repo / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_vacuous.py").write_text(
+        "def test_does_not_write():\n    calls = []\n    run(lambda x: calls.append(x))\n    assert calls == []\n",
+        encoding="utf-8",
+    )
+    relative = "tests/test_vacuous.py"
+    results = probe(
+        sandbox,
+        "coord",
+        [
+            {
+                "action": "callTool",
+                "name": "verify_assertions",
+                "arguments": {"paths": [relative], "repo": str(toy_repo)},
+            },
+            {"action": "callTool", "name": "verify_assertions", "arguments": {"paths": [relative]}},
+        ],
+    )
+    anchored, unanchored = (r["result"] for r in results)
+    assert anchored["isError"] is False, anchored
+    scan = anchored["structuredContent"]
+    assert scan["ok"] is True and scan["files_scanned"] == 1
+    assert [f["test_name"] for f in scan["findings"]] == ["test_does_not_write"]
+    assert unanchored["structuredContent"]["missing"] == [relative]
+
+
 def test_coord_claim_signals_through_goose(sandbox, toy_repo):
     results = probe(
         sandbox,

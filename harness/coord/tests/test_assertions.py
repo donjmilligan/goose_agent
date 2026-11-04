@@ -219,3 +219,41 @@ def test_this_packages_own_tests_have_no_vacuous_spy_assertions():
         f"{f.path}:{f.line} {f.test_name}: {f.snippet}" for f in result.findings
     )
     assert result.parse_errors == []
+
+
+def test_scan_resolves_relative_paths_against_repo_not_the_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """The smoke's D12: a session started in the repo's parent passed the
+    repo-relative paths changed_paths returned, and got them back as missing."""
+    repo = tmp_path / "proj.wt" / "story"
+    _write(repo, "tests/test_bad.py", VACUOUS)
+    elsewhere = tmp_path / "session-cwd"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    from_cwd = checker.scan(["tests/test_bad.py"])
+    from_repo = checker.scan(["tests/test_bad.py"], repo=repo)
+
+    assert from_cwd.missing == ["tests/test_bad.py"]
+    assert from_repo.missing == []
+    assert from_repo.files_scanned == 1
+    assert [(f.path, f.test_name) for f in from_repo.findings] == [
+        (repo / "tests" / "test_bad.py", "test_does_not_write")
+    ]
+
+
+def test_scan_keeps_absolute_paths_and_defaults_to_the_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    absolute = _write(tmp_path, "abs/test_bad.py", VACUOUS)
+    _write(tmp_path, "rel/test_bad.py", VACUOUS)
+    monkeypatch.chdir(tmp_path)
+
+    with_other_repo = checker.scan([absolute], repo=tmp_path / "unrelated")
+    default = checker.scan(["rel/test_bad.py"])
+
+    assert with_other_repo.files_scanned == 1
+    assert [f.path for f in with_other_repo.findings] == [absolute]
+    assert default.files_scanned == 1
+    assert [f.path for f in default.findings] == [Path("rel/test_bad.py")]

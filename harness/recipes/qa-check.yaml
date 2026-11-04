@@ -56,7 +56,11 @@ instructions: |
 
   ## Step 3: verify-assertions
   Take the changed test files from step 1: Python files named `test_*.py`
-  or `*_test.py` that still exist. Pass them to agent-harness_coord__verify_assertions.
+  or `*_test.py` that still exist. Call
+  agent-harness_coord__verify_assertions(paths=<those files>, repo="{{project_dir}}").
+  The paths from step 1 are relative to the worktree, so always pass repo;
+  without it they resolve against this session's directory and come back
+  as `missing`.
   - If findings come back, the change is not DONE. Each test that asserts
     only an absence, with nothing proving the code ran, needs a positive
     assertion. If absence is the whole point of the test, it needs a

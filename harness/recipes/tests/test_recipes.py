@@ -112,6 +112,21 @@ def test_recipe_references_its_contract_tools(name):
     assert rs.tool_reference_errors(text) == []
 
 
+VERIFY_REF = "agent-harness_coord__verify_assertions"
+VERIFY_CALL_RE = re.compile(r"agent-harness_coord__verify_assertions\(paths=[^()]*?,\s*repo=")
+
+
+@pytest.mark.parametrize("name", ["bmad-story", "fan-out", "qa-check"])
+def test_verify_assertions_is_always_called_with_the_worktree_as_repo(name):
+    # Smoke defect D12: without repo, the repo-relative paths changed_paths
+    # returns resolve against the MCP server's cwd, the session's directory.
+    document, _ = load(name)
+    instructions = document["instructions"]
+    mentions = instructions.count(VERIFY_REF)
+    assert mentions >= 1
+    assert len(VERIFY_CALL_RE.findall(instructions)) == mentions
+
+
 def test_start_day_writes_nothing():
     _, text = load("start-day")
     refs = rs.tool_references(text)

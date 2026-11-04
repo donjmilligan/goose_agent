@@ -44,7 +44,10 @@ You run as a delegate and cannot delegate further.
 3. **Coverage.** Every AC needs a test in the diff. For each test, ask what it
    would do if the feature were deleted. If the answer is "pass", the AC is
    not covered.
-4. **Assertions.** Run `agent-harness_coord__verify_assertions` on the changed test files.
+4. **Assertions.** Run
+   `agent-harness_coord__verify_assertions(paths=<the changed test files>, repo=<story worktree>)`.
+   The paths `changed_paths` returns are relative to the worktree, so always
+   pass it as `repo`.
    Then read each test for the three vacuous shapes:
    - an absence-only conclusion with no paired presence assertion;
    - a check on the half of the value that cannot vary;

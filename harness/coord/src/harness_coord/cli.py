@@ -42,6 +42,7 @@ def _parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("verify-assertions", help="flag vacuous spy-collector absence asserts")
     p.add_argument("paths", nargs="*", default=["."])
+    p.add_argument("--repo", default=".", help="directory relative paths resolve against")
     p.add_argument("--json", action="store_true", help="print the structured result")
     return parser
 
@@ -50,8 +51,8 @@ def _emit(result: dict[str, Any]) -> None:
     print(json.dumps(result, indent=2))
 
 
-def _verify(paths: list[str], as_json: bool) -> int:
-    result = assertions.scan(paths)
+def _verify(paths: list[str], repo: str, as_json: bool) -> int:
+    result = assertions.scan(paths, repo)
     if as_json:
         _emit(result.as_dict())
     else:
@@ -66,7 +67,7 @@ def _verify(paths: list[str], as_json: bool) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "verify-assertions":
-        return _verify(args.paths, args.json)
+        return _verify(args.paths, args.repo, args.json)
     try:
         match args.command:
             case "claim-signals":

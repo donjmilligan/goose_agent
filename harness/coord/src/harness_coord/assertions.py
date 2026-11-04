@@ -265,9 +265,11 @@ def iter_test_files(root: Path) -> Iterator[Path]:
             yield file
 
 
-def scan(paths: Iterable[str | Path]) -> ScanResult:
+def scan(paths: Iterable[str | Path], repo: str | Path = ".") -> ScanResult:
+    """Relative paths resolve against `repo`, so the repo-relative paths that
+    `changed_paths(repo=...)` returns can be passed straight through."""
     result = ScanResult()
-    targets = [Path(p) for p in paths]
+    targets = [Path(repo) / p for p in paths]
     result.missing = [str(t) for t in targets if not t.exists()]
     if result.missing:
         return result

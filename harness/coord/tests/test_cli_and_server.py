@@ -67,6 +67,27 @@ def test_verify_assertions_json(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert [f["line"] for f in payload["findings"]] == [5]
 
 
+def test_verify_assertions_repo_resolves_relative_paths(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+):
+    repo = tmp_path / "proj.wt" / "story"
+    (repo / "tests").mkdir(parents=True)
+    (repo / "tests" / "test_bad.py").write_text(VACUOUS)
+    monkeypatch.chdir(tmp_path)
+
+    code, out, _ = _run(
+        capsys, "verify-assertions", "--json", "--repo", str(repo), "tests/test_bad.py"
+    )
+    missing_code, _, missing_err = _run(capsys, "verify-assertions", "tests/test_bad.py")
+
+    payload = json.loads(out)
+    assert code == 1
+    assert payload["files_scanned"] == 1
+    assert [f["test_name"] for f in payload["findings"]] == ["test_does_not_write"]
+    assert missing_code == 2
+    assert "no such path: tests/test_bad.py" in missing_err
+
+
 def test_usage_error_exits_2(capsys: pytest.CaptureFixture[str]):
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["no-such-command"])
@@ -198,3 +219,31 @@ def test_server_success_and_verify_paths(repos: Repos, tmp_path: Path):
     assert scanned["files_scanned"] == 1
     assert empty["ok"] is False
     assert empty["error"]["code"] == "invalid_argument"
+
+
+def test_server_verify_assertions_resolves_relative_paths_against_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """D12: changed_paths(repo=...) returns repo-relative paths; feeding them to
+    verify_assertions from a session started elsewhere must still find them."""
+    repo = tmp_path / "proj.wt" / "story"
+    (repo / "tests").mkdir(parents=True)
+    (repo / "tests" / "test_bad.py").write_text(VACUOUS)
+    monkeypatch.chdir(tmp_path)
+
+    scanned = _ok("verify_assertions", {"paths": ["tests/test_bad.py"], "repo": str(repo)})
+    unanchored = _ok("verify_assertions", {"paths": ["tests/test_bad.py"]})
+
+    assert scanned["ok"] is True
+    assert scanned["files_scanned"] == 1
+    assert [f["test_name"] for f in scanned["findings"]] == ["test_does_not_write"]
+    assert unanchored["ok"] is False
+    assert unanchored["missing"] == ["tests/test_bad.py"]
+
+
+def test_server_verify_assertions_repo_is_optional_and_defaults_to_cwd():
+    (tool,) = [t for t in asyncio.run(server.mcp.list_tools()) if t.name == "verify_assertions"]
+    schema = tool.inputSchema
+
+    assert schema["required"] == ["paths"]
+    assert schema["properties"]["repo"]["default"] == "."

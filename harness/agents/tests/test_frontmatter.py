@@ -243,6 +243,17 @@ def test_personas_reference_contract_tools():
     assert refs <= CONTRACT_TOOLS
 
 
+def test_personas_call_verify_assertions_with_the_worktree_as_repo():
+    """Smoke defect D12: relative paths resolve against `repo`, else the server's cwd."""
+    ref = "agent-harness_coord__verify_assertions"
+    call = re.compile(r"agent-harness_coord__verify_assertions\(paths=[^()]*?,\s*repo=")
+    texts = {p.stem: p.read_text() for p in persona_files()}
+    callers = {name for name, text in texts.items() if ref in text}
+    assert {"dev", "qa"} <= callers
+    for name in callers:
+        assert len(call.findall(texts[name])) == texts[name].count(ref), name
+
+
 def test_tool_ref_scanner_finds_refs_and_ignores_dunders():
     assert tool_refs("call `agent-harness_coord__nope` then `agent-harness_slack__reply`") == {"agent-harness_coord__nope", "agent-harness_slack__reply"}
     assert tool_refs("def __init__(self): x.__dict__") == set()  # absence-ok: hit case on line above

@@ -51,11 +51,12 @@ You run as a delegate and cannot delegate further.
    - the assertion is sound but no fixture reaches the branch, so add the
      fixture;
    - the mutation does not change behaviour, so say why.
-7. Run `agent-harness_coord__changed_paths(base="origin/main")`. Every path in the result
-   must be in Context files. Revert anything else, or stop.
-8. Run `agent-harness_coord__verify_assertions` on the changed test files. For each
-   flagged assertion, pair it with a presence assertion, or annotate it
-   `# absence-ok: <reason>`.
+7. Run `agent-harness_coord__changed_paths(base="origin/main", repo=<worktree>)`. Every
+   path in the result must be in Context files. Revert anything else, or stop.
+8. Run `agent-harness_coord__verify_assertions(paths=<the changed test files>, repo=<worktree>)`.
+   The paths from step 7 are relative to the worktree, so always pass it as
+   `repo`. For each flagged assertion, pair it with a presence assertion, or
+   annotate it `# absence-ok: <reason>`.
 9. Run every command under Gates exactly as written. Record each command and
    its pass and fail counts.
 10. Fill in the Dev record, set `Status: Review`, commit, and push.

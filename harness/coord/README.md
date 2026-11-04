@@ -20,11 +20,11 @@ The CLI prints the same `{"ok": false, ...}` object and exits 1.
 | Tool | What it does |
 |---|---|
 | `claim_signals(topic, repo=".")` | Runs `git ls-remote --heads origin` and `git worktree list --porcelain` and returns the remote branches and worktrees whose names match `topic`. Matching is case-insensitive, and `-`, `_`, `/`, `.` and spaces count as the same character. It also returns `remote_branch_count` and `worktree_count`. Those totals are the positive control: if nothing matches and the counts are above 0, everything was read and nothing matched. If `ls-remote` fails, the call is a tool error with code `network`, never an empty list. |
-| `worktree_create(slug, branch, base="origin/main", repo=".")` | Creates `<main-checkout>.wt/<slug>` on a new branch from `base`, using `--no-track` so a bare `git push` can't reach `base`. It resolves the main checkout even when called from inside a linked worktree. It refuses an invalid slug (`[a-z0-9][a-z0-9._-]{0,63}`, no `..`). It refuses a target that resolves inside any checkout, symlinks included (code `path_inside_repo`). It refuses a target path that already exists, and a branch that already exists locally or on origin (code `branch_exists`). It never pushes. |
+| `worktree_create(slug, branch, base="origin/main", repo=".")` | Creates `<main-checkout>.wt/<slug>` on a new branch from `base`, using `--no-track` so a bare `git push` can't reach `base`. It resolves the main checkout even when called from inside a linked worktree. It refuses an invalid slug (`[a-z0-9][a-z0-9._-]{0,63}`, no `..`). It refuses a target path that already exists (code `path_exists`, checked first, so re-creating a live worktree says so). It refuses a target that resolves inside any checkout, symlinks included (code `path_inside_repo`). It refuses a branch that already exists locally or on origin (code `branch_exists`). It never pushes. |
 | `worktree_list(repo=".")` | Returns `count` and `worktrees`. Each worktree has `path`, `head`, `branch`, `detached`, `bare`, `locked` and `prunable`. |
 | `gen_hash(length=4)` | Returns a lowercase alphanumeric id built with `secrets`, for example the `{hash}` in a decision-record filename. Never invent one. |
 | `changed_paths(base="origin/main", repo=".")` | Returns `committed` (files changed between merge-base(base, HEAD) and HEAD), `uncommitted` (staged, unstaged and untracked files), and `paths` (the sorted union of both). |
-| `verify_assertions(paths)` | Ported from vanta-lms `scripts/verify_test_assertions.py`. It flags a test that asserts a spy collector is empty when nothing else in the test proves the code ran (see below). It returns `clean`, `files_scanned` (the positive control), `findings`, `parse_errors` and `missing`. |
+| `verify_assertions(paths, repo=".")` | Ported from vanta-lms `scripts/verify_test_assertions.py`. Relative `paths` resolve against `repo`, not the server's working directory, so pass the same worktree you gave `changed_paths` and its repo-relative paths work as they are. Absolute paths are used as given. It flags a test that asserts a spy collector is empty when nothing else in the test proves the code ran (see below). It returns `clean`, `files_scanned` (the positive control), `findings`, `parse_errors` and `missing`. |
 
 ### What `verify_assertions` flags, and why so little
 
@@ -50,7 +50,7 @@ uv run --project harness/coord harness-coord worktree-create my-slug feature/my-
 uv run --project harness/coord harness-coord worktree-list
 uv run --project harness/coord harness-coord gen-hash [--length 4]       # prints just the hash
 uv run --project harness/coord harness-coord changed-paths [--base origin/main]
-uv run --project harness/coord harness-coord verify-assertions tests/ [--json]
+uv run --project harness/coord harness-coord verify-assertions tests/ [--repo .] [--json]
 ```
 
 Every subcommand except `gen-hash` and `verify-assertions` prints JSON. The

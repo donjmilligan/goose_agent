@@ -166,7 +166,8 @@ instructions: |
         every absence assertion with a presence assertion.
       - Gate: cd <worktree> && {{gate_command}}. Then run
         agent-harness_coord__changed_paths(base=<base>, repo=<worktree>) and
-        agent-harness_coord__verify_assertions on the changed test files.
+        agent-harness_coord__verify_assertions(paths=<the changed test files>,
+        repo=<worktree>).
       - Commit with an imperative subject under 72 characters, then push. No PR,
         no merge, no --no-verify, no force-push.
       - You cannot delegate. Do not claim, comment on ClickUp or post to Slack;
@@ -192,8 +193,10 @@ instructions: |
   4. **Re-run a mutation.** Use one the report names, or one of your own.
      Break the guarded line, run its test and confirm red. Then restore it
      and confirm `git -C <worktree> status --porcelain` is empty.
-  5. **Check the assertions.** Run agent-harness_coord__changed_paths, then
-     agent-harness_coord__verify_assertions on the changed test files.
+  5. **Check the assertions.** Run agent-harness_coord__changed_paths(base=<base>,
+     repo=<worktree>), then agent-harness_coord__verify_assertions(paths=<the
+     changed test files>, repo=<worktree>). The paths are relative to the
+     worktree, so pass it as repo.
   6. **Spend a reviewer on large or sensitive diffs.** For more than about
      300 changed lines, or anything touching auth, secrets or personal data,
      use one review delegate. Reviewers are read-only, and each counts
